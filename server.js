@@ -92,7 +92,7 @@ app.post('/register', async (req, res) => {
     console.error("❌ Errore registrazione:", err);
     res.status(500).send("❌ Errore registrazione utente.");
   }
-});
+}); 
 
 
 

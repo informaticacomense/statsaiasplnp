@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Gestione Partite - Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+
+  <nav class="bg-gray-800 text-white p-4 flex justify-between">
+    <h1 class="text-xl font-bold">⚙️ Pannello Admin - StatsAIASPLnp</h1>
+    <div>
+      <button onclick="cancellaTutto()" class="bg-red-600 px-3 py-1 rounded hover:bg-red-800 mr-4">🗑️ Cancella tutto</button>
+      <button onclick="logout()" class="bg-red-500 px-3 py-1 rounded hover:bg-red-700">Logout</button>
+      <a href="report.html" class="bg-blue-600 px-3 py-1 rounded hover:bg-blue-800">📊 Report Partite</a>
+
+    </div>
+  </nav>
+
+  <h2 class="text-2xl font-bold mb-4">📂 Carica Partite da CSV</h2>
+<form id="csvForm" class="mb-6 border p-4 bg-white rounded shadow" enctype="multipart/form-data">
+  <input type="file" name="partite_csv" accept=".csv" class="mb-2">
+  <button type="submit" class="bg-blue-600 text-white px-3 py-1 rounded">Carica CSV</button>
+</form>
+
+  <main class="p-6 max-w-6xl mx-auto">
+    <h2 class="text-2xl font-bold mb-4">📋 Elenco Partite e Iscritti</h2>
+    <div id="partiteContainer" class="space-y-8"></div>
+  </main>
+
+  <script>
+    async function loadPartite() {
+      const res = await fetch('/report-partite');
+      if (!res.ok) {
+        document.getElementById("partiteContainer").innerHTML = "<p class='text-red-600'>Errore nel caricamento partite.</p>";
+        return;
+      }
+      const dati = await res.json();
+      const container = document.getElementById("partiteContainer");
+      container.innerHTML = "";
+
+      const grouped = {};
+      dati.forEach(r => {
+        if (!grouped[r.partita_id]) grouped[r.partita_id] = { info: r, iscritti: [] };
+        if (r.user_id) grouped[r.partita_id].iscritti.push(r);
+      });
+
+      Object.values(grouped).forEach(gruppo => {
+        const p = gruppo.info;
+        let iscrittiHTML = "";
+
+        if (gruppo.iscritti.length === 0) {
+          iscrittiHTML = "<p class='text-gray-500'>Nessun iscritto</p>";
+        } else {
+          iscrittiHTML = `
+            <table class="w-full border mt-2 text-sm">
+              <thead class="bg-gray-200">
+                <tr>
+                  <th class="p-2">Nome</th>
+                  <th class="p-2">Email</th>
+                  <th class="p-2">Ruolo</th>
+                  <th class="p-2">Orario arrivo</th>
+                  <th class="p-2">Note</th>
+                  <th class="p-2">File</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${gruppo.iscritti.map(i => `
+                  <tr class="border-b">
+                    <td class="p-2">${i.nome} ${i.cognome}</td>
+                    <td class="p-2">${i.email}</td>
+                    <td class="p-2">
+                      <select onchange="aggiornaRuolo(${i.id}, this.value)" class="border rounded px-1 py-0.5">
+                        <option value="caller" ${i.ruolo==='caller'?'selected':''}>Caller</option>
+                        <option value="statistician" ${i.ruolo==='statistician'?'selected':''}>Statistician</option>
+                        <option value="standby" ${i.ruolo==='standby'?'selected':''}>Standby</option>
+                      </select>
+                    </td>
+                    <td class="p-2">${i.orario_arrivo || "-"}</td>
+                    <td class="p-2">${i.note || "-"}</td>
+                    <td class="p-2">
+  ${i.file_statistico ? `<a href="/uploads/${i.file_statistico}" target="_blank" class="text-blue-600 underline block">📑 File FIBA Live Stats</a>` : ""}
+  ${i.pdf_statistiche ? `<a href="/uploads/${i.pdf_statistiche}" target="_blank" class="text-blue-600 underline block">📊 PDF Statistiche</a>` : ""}
+  ${i.foto_statistiche ? `<a href="/uploads/${i.foto_statistiche}" target="_blank" class="text-blue-600 underline block">📷 Foto Referto</a>` : ""}
+</td>
+
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          `;
+        }
+
+        container.innerHTML += `
+          <div class="bg-white p-4 rounded shadow">
+            <h3 class="text-lg font-bold">${p.campionato} - ${p.squadra_a} vs ${p.squadra_b}</h3>
+            <p class="text-sm text-gray-600">
+              Gara ${p.numero_gara} | Girone ${p.girone || '-'} | Campo: ${p.campo_gioco || '-'} | Orario: ${p.orario || '-'}
+            </p>
+            <p class="mt-1">📌 Stato: <span class="font-semibold">${p.stato}</span> ${p.risultato_finale ? `| 🏆 Risultato: ${p.risultato_finale}` : ""}</p>
+
+            <div class="mt-2">
+              <label class="block text-sm">📝 Note admin (visibili agli utenti):</label>
+              <textarea id="noteAdmin-${p.partita_id}" class="border p-2 rounded w-full mb-2">${p.note_admin || ""}</textarea>
+
+              <label class="block text-sm">📌 Stato partita:</label>
+              <select id="stato-${p.partita_id}" class="border p-2 rounded mb-2">
+                <option value="da_giocare" ${p.stato==="da_giocare"?"selected":""}>Da giocare</option>
+                <option value="in_corso" ${p.stato==="in_corso"?"selected":""}>In corso</option>
+                <option value="terminata" ${p.stato==="terminata"?"selected":""}>Terminata</option>
+                <option value="revisionata" ${p.stato==="revisionata"?"selected":""}>Revisionata</option>
+                <option value="da_rivedere" ${p.stato==="da_rivedere"?"selected":""}>Da rivedere</option>
+              </select>
+
+              <button onclick="aggiornaStato(${p.partita_id})" class="bg-green-600 text-white px-3 py-1 rounded">Salva</button>
+            </div>
+
+            <h4 class="mt-4 font-semibold">👥 Iscritti</h4>
+            ${iscrittiHTML}
+          </div>
+        `;
+      });
+    }
+
+    async function aggiornaStato(partitaId) {
+      const stato = document.getElementById(`stato-${partitaId}`).value;
+      const note_admin = document.getElementById(`noteAdmin-${partitaId}`).value;
+      const res = await fetch('/partite/stato', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ partita_id: partitaId, stato, note_admin })
+      });
+      alert(await res.text());
+      loadPartite();
+    }
+
+    async function aggiornaRuolo(iscrizioneId, ruolo) {
+      const res = await fetch('/iscrizioni/ruolo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ iscrizione_id: iscrizioneId, ruolo })
+      });
+      alert(await res.text());
+      loadPartite();
+    }
+
+    async function cancellaTutto() {
+      if (!confirm("Sei sicuro di voler cancellare TUTTE le partite e iscrizioni?")) return;
+      const res = await fetch('/admin/reset', { method: 'POST' });
+      alert(await res.text());
+      loadPartite();
+    }
+
+    async function logout() {
+      await fetch('/logout');
+      window.location.href = "/";
+    }
+
+    loadPartite();
+
+    document.getElementById('csvForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const formData = new FormData(e.target);
+  const res = await fetch('/admin/upload-csv', {
+    method: 'POST',
+    body: formData
+  });
+  alert(await res.text());
+  loadPartite();
+});
+
+  </script>
+
+  
+</body>
+</html>

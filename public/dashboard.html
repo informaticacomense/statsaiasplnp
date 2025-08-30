@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard Utente - StatsAIASPLnp</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+
+  <nav class="bg-green-600 text-white p-4 flex justify-between">
+    <h1 class="text-xl font-bold">🏀 StatsAIASPLnp - Area Riservata</h1>
+    <div>
+      <span id="userName" class="mr-4"></span>
+      <a href="profile.html" class="mr-4 underline">Profilo</a>
+      <a href="admin.html" id="adminLink" class="mr-4 underline hidden">Gestione Partite</a>
+      <button onclick="logout()" class="bg-red-500 px-3 py-1 rounded hover:bg-red-700">Logout</button>
+    </div>
+  </nav>
+
+  <main class="p-6 max-w-6xl mx-auto">
+    <h2 class="text-2xl font-bold mb-4">📅 Partite disponibili</h2>
+
+    <!-- Filtri -->
+    <div class="flex gap-4 mb-6 flex-wrap">
+      <select id="filterCampionato" class="border p-2 rounded">
+        <option value="">Tutti i Campionati</option>
+      </select>
+      <select id="filterGirone" class="border p-2 rounded">
+        <option value="">Tutti i Gironi</option>
+      </select>
+      <select id="filterStato" class="border p-2 rounded">
+        <option value="">Tutti gli Stati</option>
+        <option value="da_giocare">Da giocare</option>
+        <option value="in_corso">In corso</option>
+        <option value="terminata">Terminate</option>
+        <option value="revisionata">Revisionate</option>
+        <option value="da_rivedere">Da rivedere</option>
+      </select>
+    </div>
+
+    <div id="partiteContainer" class="space-y-6"></div>
+  </main>
+
+  <script>
+    let currentUser = null;
+    let iscrizioniUtente = [];
+    let allPartite = [];
+
+    async function loadUser() {
+      const res = await fetch('/me');
+      if (!res.ok) {
+        window.location.href = "/";
+        return;
+      }
+      currentUser = await res.json();
+      document.getElementById("userName").innerText = currentUser.nome + " " + currentUser.cognome;
+      if (currentUser.ruolo === "admin") {
+        document.getElementById("adminLink").classList.remove("hidden");
+      }
+      await loadIscrizioniUtente();
+      await loadPartite();
+    }
+
+    async function loadIscrizioniUtente() {
+      const res = await fetch('/mie-iscrizioni');
+      if (!res.ok) return;
+      iscrizioniUtente = await res.json();
+    }
+
+    async function loadPartite() {
+      const res = await fetch('/partite');
+      allPartite = await res.json();
+      populateFilters();
+      renderPartite();
+    }
+
+    function populateFilters() {
+      const campionati = [...new Set(allPartite.map(p => p.campionato).filter(Boolean))];
+      const gironi = [...new Set(allPartite.map(p => p.girone).filter(Boolean))];
+
+      const campSel = document.getElementById("filterCampionato");
+      const girSel = document.getElementById("filterGirone");
+
+      // reset
+      campSel.innerHTML = `<option value="">Tutti i Campionati</option>`;
+      girSel.innerHTML = `<option value="">Tutti i Gironi</option>`;
+
+      campionati.forEach(c => {
+        campSel.innerHTML += `<option value="${c}">${c}</option>`;
+      });
+      gironi.forEach(g => {
+        girSel.innerHTML += `<option value="${g}">${g}</option>`;
+      });
+    }
+
+    function renderPartite() {
+      const camp = document.getElementById("filterCampionato").value;
+      const gir = document.getElementById("filterGirone").value;
+      const stato = document.getElementById("filterStato").value;
+
+      const container = document.getElementById("partiteContainer");
+      container.innerHTML = "";
+
+      let filtered = allPartite.filter(p => {
+        if (camp && p.campionato !== camp) return false;
+        if (gir && p.girone !== gir) return false;
+        if (stato && p.stato !== stato) return false;
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = "<p class='text-gray-500'>Nessuna partita trovata.</p>";
+        return;
+      }
+
+      filtered.forEach(p => {
+        const iscrizione = iscrizioniUtente.find(i => i.partita_id === p.id);
+
+        let userSection = "";
+        if (iscrizione) {
+          let finegaraForm = `
+            <button onclick="toggleFineGaraForm(${p.id})" class="bg-purple-600 text-white px-3 py-1 rounded mt-2 hover:bg-purple-700">
+              📄 Fine Gara
+            </button>
+
+            <form id="finegara-${p.id}" class="hidden mt-3 border p-3 rounded bg-gray-50" enctype="multipart/form-data">
+              <input type="hidden" name="partita_id" value="${p.id}">
+          `;
+
+          if (iscrizione.ruolo === "caller") {
+            finegaraForm += `
+              <label class="block text-sm mb-1">🏆 Punteggio finale</label>
+              <input type="text" name="risultato_finale" placeholder="Es: 75-68" class="border p-2 rounded w-full mb-2">
+            `;
+          } else {
+            finegaraForm += `<p class="text-sm text-gray-600 mb-2">⚠️ Solo il <b>Caller</b> può inserire il risultato finale.</p>`;
+          }
+
+          finegaraForm += `
+              <label class="block text-sm mb-1">📝 Note</label>
+              <textarea name="note" class="border p-2 rounded w-full mb-2"></textarea>
+
+              <label class="block text-sm mb-1">📑 Carica File FIBA LIVE STATS</label>
+              <input type="file" name="file_stat" class="mb-2">
+
+              <label class="block text-sm mb-1">📊 PDF statistiche</label>
+              <input type="file" name="pdf_stat" accept=".pdf" class="mb-2">
+
+              <label class="block text-sm mb-1">📷 Foto referto</label>
+              <input type="file" name="foto_stat" accept="image/*" class="mb-2">
+
+              <button type="submit" class="bg-green-600 text-white px-3 py-1 rounded">Salva</button>
+            </form>
+          `;
+
+          if (iscrizione.file_statistico || iscrizione.pdf_statistiche || iscrizione.foto_statistiche) {
+            finegaraForm += `
+              <div class="mt-3 p-2 bg-gray-100 border rounded">
+                <p class="text-sm font-semibold mb-1">📂 File già caricati:</p>
+                ${iscrizione.file_statistico ? `<a href="/uploads/${iscrizione.file_statistico}" target="_blank" class="text-blue-600 underline block">📑 FIBA Live Stats</a>` : ""}
+                ${iscrizione.pdf_statistiche ? `<a href="/uploads/${iscrizione.pdf_statistiche}" target="_blank" class="text-blue-600 underline block">📊 PDF Statistiche</a>` : ""}
+                ${iscrizione.foto_statistiche ? `<a href="/uploads/${iscrizione.foto_statistiche}" target="_blank" class="text-blue-600 underline block">📷 Foto Referto</a>` : ""}
+              </div>
+            `;
+          }
+
+          if (p.note_admin) {
+            finegaraForm += `
+              <div class="mt-3 p-2 bg-yellow-100 border border-yellow-400 rounded">
+                <p class="text-sm"><b>📝 Nota di revisione dell'Admin:</b></p>
+                <p class="text-sm">${p.note_admin}</p>
+              </div>
+            `;
+          }
+
+          userSection = `
+            <p class="mt-2 text-green-700">✅ Sei iscritto come <b>${iscrizione.ruolo}</b> (arrivo: ${iscrizione.orario_arrivo || '-'})</p>
+            ${finegaraForm}
+          `;
+        } else {
+          userSection = `
+            <button onclick="toggleIscrizioneForm(${p.id})" class="bg-blue-600 text-white px-3 py-1 rounded mt-2 hover:bg-blue-700">
+              ➕ Registrati
+            </button>
+
+            <form id="iscrizione-${p.id}" class="hidden mt-3 border p-3 rounded bg-gray-50">
+              <label class="block text-sm mb-1">Ruolo</label>
+              <select id="ruolo-${p.id}" class="border p-2 rounded w-full mb-2">
+                <option value="caller">Caller</option>
+                <option value="statistician">Statistician</option>
+                <option value="standby">Standby</option>
+              </select>
+
+              <label class="block text-sm mb-1">Orario di arrivo</label>
+              <input type="time" id="orario-${p.id}" class="border p-2 rounded w-full mb-2">
+
+              <button onclick="confermaIscrizione(event, ${p.id})" class="bg-green-600 text-white px-3 py-1 rounded">Conferma iscrizione</button>
+            </form>
+          `;
+        }
+
+        container.innerHTML += `
+          <div class="bg-white p-4 rounded shadow">
+            <h3 class="text-lg font-bold">${p.campionato} - ${p.squadra_a} vs ${p.squadra_b}</h3>
+            <p class="text-sm text-gray-600">
+              Gara ${p.numero_gara} | Girone ${p.girone || '-'} | Campo: ${p.campo_gioco || '-'} | Orario: ${p.orario || '-'}
+            </p>
+            <p class="mt-1">📌 Stato: <span class="font-semibold">${p.stato}</span> ${p.risultato_finale ? `| 🏆 Risultato: ${p.risultato_finale}` : ""}</p>
+            ${userSection}
+          </div>
+        `;
+      });
+    }
+
+    function toggleIscrizioneForm(partitaId) {
+      document.getElementById(`iscrizione-${partitaId}`).classList.toggle("hidden");
+    }
+
+    async function confermaIscrizione(e, partitaId) {
+      e.preventDefault();
+      const ruolo = document.getElementById(`ruolo-${partitaId}`).value;
+      const orario = document.getElementById(`orario-${partitaId}`).value;
+      const res = await fetch('/partite/registrati', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ partita_id: partitaId, ruolo, orario_arrivo: orario })
+      });
+      alert(await res.text());
+      loadUser();
+    }
+
+    function toggleFineGaraForm(partitaId) {
+      document.getElementById(`finegara-${partitaId}`).classList.toggle("hidden");
+    }
+
+    document.addEventListener("submit", async (e) => {
+      if (e.target.id.startsWith("finegara-")) {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const res = await fetch('/partite/finegara', { method: 'POST', body: formData });
+        alert(await res.text());
+        loadUser();
+      }
+    });
+
+    ["filterCampionato", "filterGirone", "filterStato"].forEach(id => {
+      document.getElementById(id).addEventListener("change", renderPartite);
+    });
+
+    async function logout() {
+      await fetch('/logout');
+      window.location.href = '/';
+    }
+
+    loadUser();
+  </script>
+</body>
+</html>

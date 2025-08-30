@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Report Partite - Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+
+  <nav class="bg-gray-800 text-white p-4 flex justify-between">
+    <h1 class="text-xl font-bold">📊 Report Partite - StatsAIASPLnp</h1>
+    <button onclick="logout()" class="bg-red-500 px-3 py-1 rounded hover:bg-red-700">Logout</button>
+  </nav>
+
+  <main class="p-6 max-w-6xl mx-auto">
+    <h2 class="text-2xl font-bold mb-4">📂 Filtra Partite</h2>
+
+    <div class="flex gap-4 mb-6">
+      <select id="filterCampionato" class="border p-2 rounded">
+        <option value="">Tutti i Campionati</option>
+      </select>
+      <select id="filterGirone" class="border p-2 rounded">
+        <option value="">Tutti i Gironi</option>
+      </select>
+      <select id="filterStato" class="border p-2 rounded">
+        <option value="">Tutti gli Stati</option>
+        <option value="in_corso">In Corso</option>
+        <option value="terminata">Terminate</option>
+        <option value="revisionata">Revisionate</option>
+        <option value="da_rivedere">Da Rivedere</option>
+      </select>
+      <label class="flex items-center">
+        <input type="checkbox" id="filterMancanti" class="mr-2"> Mancanti file statistici
+      </label>
+    </div>
+
+    <div id="reportContainer" class="space-y-6"></div>
+  </main>
+
+  <script>
+    let allPartite = [];
+
+    async function loadReport() {
+      const res = await fetch('/admin/report-advanced');
+      if (!res.ok) {
+        document.getElementById("reportContainer").innerHTML = "<p class='text-red-600'>Errore caricamento report.</p>";
+        return;
+      }
+      allPartite = await res.json();
+      populateFilters();
+      renderReport();
+    }
+
+    function populateFilters() {
+      const campionati = [...new Set(allPartite.map(p => p.campionato).filter(Boolean))];
+      const gironi = [...new Set(allPartite.map(p => p.girone).filter(Boolean))];
+
+      const campSel = document.getElementById("filterCampionato");
+      const girSel = document.getElementById("filterGirone");
+
+      campionati.forEach(c => {
+        campSel.innerHTML += `<option value="${c}">${c}</option>`;
+      });
+      gironi.forEach(g => {
+        girSel.innerHTML += `<option value="${g}">${g}</option>`;
+      });
+    }
+
+    function renderReport() {
+      const camp = document.getElementById("filterCampionato").value;
+      const gir = document.getElementById("filterGirone").value;
+      const stato = document.getElementById("filterStato").value;
+      const mancaFile = document.getElementById("filterMancanti").checked;
+
+      const container = document.getElementById("reportContainer");
+      container.innerHTML = "";
+
+      let filtered = allPartite.filter(p => {
+        if (camp && p.campionato !== camp) return false;
+        if (gir && p.girone !== gir) return false;
+        if (stato && p.stato !== stato) return false;
+        if (mancaFile && !p.file_statistico) return false;
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = "<p class='text-gray-500'>Nessuna partita trovata.</p>";
+        return;
+      }
+
+      filtered.forEach(p => {
+        container.innerHTML += `
+          <div class="bg-white p-4 rounded shadow">
+            <h3 class="text-lg font-bold">${p.campionato} - ${p.squadra_a} vs ${p.squadra_b}</h3>
+            <p class="text-sm text-gray-600">
+              Gara ${p.numero_gara} | Girone ${p.girone || '-'} | Campo: ${p.campo_gioco || '-'} | Orario: ${p.orario || '-'}
+            </p>
+            <p class="mt-1">📌 Stato: <span class="font-semibold">${p.stato}</span> ${p.risultato_finale ? `| 🏆 Risultato: ${p.risultato_finale}` : ""}</p>
+            <div class="mt-2">
+              ${p.file_statistico ? `<a href="/uploads/${p.file_statistico}" target="_blank" class="text-blue-600 underline mr-2">📑 FIBA Live Stats</a>` : ""}
+              ${p.pdf_statistiche ? `<a href="/uploads/${p.pdf_statistiche}" target="_blank" class="text-blue-600 underline mr-2">📊 PDF</a>` : ""}
+              ${p.foto_statistiche ? `<a href="/uploads/${p.foto_statistiche}" target="_blank" class="text-blue-600 underline">📷 Referto</a>` : ""}
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    ["filterCampionato", "filterGirone", "filterStato", "filterMancanti"].forEach(id => {
+      document.getElementById(id).addEventListener("change", renderReport);
+    });
+
+    async function logout() {
+      await fetch('/logout');
+      window.location.href = "/";
+    }
+
+    loadReport();
+  </script>
+</body>
+</html>

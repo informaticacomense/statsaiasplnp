@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Profilo Utente</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-8">
+  <h1 class="text-3xl font-bold text-blue-700 mb-6">✏️ Modifica Profilo</h1>
+
+  <form id="profileForm" class="bg-white shadow rounded p-6 max-w-xl space-y-4">
+    <input type="text" name="nome" placeholder="Nome" class="w-full border rounded px-3 py-2" required>
+    <input type="text" name="cognome" placeholder="Cognome" class="w-full border rounded px-3 py-2" required>
+    <input type="date" name="data_nascita" class="w-full border rounded px-3 py-2">
+    <input type="text" name="luogo_nascita" placeholder="Luogo di Nascita" class="w-full border rounded px-3 py-2">
+    <input type="text" name="indirizzo_residenza" placeholder="Indirizzo" class="w-full border rounded px-3 py-2">
+    <input type="text" name="paese" placeholder="Paese" class="w-full border rounded px-3 py-2">
+    <input type="text" name="cap" placeholder="CAP" class="w-full border rounded px-3 py-2">
+    <input type="text" name="provincia" placeholder="Provincia" class="w-full border rounded px-3 py-2">
+    <input type="text" name="club_appartenenza" placeholder="Club" class="w-full border rounded px-3 py-2">
+    <input type="number" name="anni_esperienza" placeholder="Anni Esperienza" class="w-full border rounded px-3 py-2">
+
+    <button type="submit" class="w-full bg-blue-600 text-white rounded py-2 hover:bg-blue-700">Salva Modifiche</button>
+  </form>
+
+  <p id="resp" class="mt-4 text-green-600"></p>
+  <button onclick="window.location.href='/dashboard.html'" class="mt-6 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">⬅️ Torna alla Dashboard</button>
+
+  <script>
+    async function loadProfile() {
+      const res = await fetch('/me');
+      if (!res.ok) return window.location.href="/index.html";
+      const user = await res.json();
+      for (const [key, value] of Object.entries(user)) {
+        if (document.querySelector(`[name="${key}"]`)) {
+          document.querySelector(`[name="${key}"]`).value = value || "";
+        }
+      }
+    }
+
+    document.getElementById('profileForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(e.target).entries());
+      const res = await fetch('/update-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      document.getElementById('resp').innerText = await res.text();
+    });
+
+    loadProfile();
+  </script>
+</body>
+</html>

@@ -69,38 +69,18 @@ const uploadFiles = multer({ storage: storage });
 /////////////////////
 
 // Registrazione
-app.post('/register', async (req, res) => {
-  const { nome, cognome, codice_fiscale, email, password } = req.body;
-  if (!nome || !cognome || !codice_fiscale || !email || !password) {
-    return res.status(400).send("⚠️ Tutti i campi obbligatori devono essere compilati!");
-  }
-  try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const sql = `INSERT INTO users (nome,cognome,codice_fiscale,email,password,ruolo)
-                 VALUES ($1,$2,$3,$4,$5,'user')`;
-    await db.query(sql, [nome, cognome, codice_fiscale, email, hashedPassword]);
-    res.send("✅ Registrazione completata!");
-  } catch (err) {
-    console.error("Errore registrazione:", err);
-    res.status(500).send("❌ Errore registrazione.");
-  }
-});
-
-// Login
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
-  console.log("🟢 Tentativo login:", email);
-
   try {
     const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
     if (result.rows.length === 0) {
-      return res.status(401).send("❌ Utente non trovato.");
+      return res.status(401).send("❌ Utente non trovato");
     }
 
     const user = result.rows[0];
     const ok = await bcrypt.compare(password, user.password);
     if (!ok) {
-      return res.status(401).send("❌ Password errata.");
+      return res.status(401).send("❌ Password errata");
     }
 
     req.session.userId = user.id;
@@ -109,13 +89,13 @@ app.post('/login', async (req, res) => {
     req.session.email = user.email;
     req.session.ruolo = user.ruolo;
 
-    console.log("✅ Login riuscito per:", email);
-    res.redirect('/index.html');
+    res.send("✅ Login effettuato!");
   } catch (err) {
     console.error("❌ Errore login:", err);
     res.status(500).send("Errore interno login.");
   }
 });
+
 
 app.get('/logout', (req, res) => {
   req.session.destroy(() => res.send("👋 Logout effettuato."));

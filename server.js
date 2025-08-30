@@ -100,24 +100,44 @@ app.post('/register', async (req, res) => {
 
 app.post('/login', (req, res) => {
   const { email, password } = req.body;
-  const sql = "SELECT * FROM users WHERE email=?";
-  db.query(sql, [email], async (err, results) => {
-    if (err) return res.status(500).send("❌ Errore login.");
-    if (results.length === 0) return res.status(401).send("❌ Utente non trovato.");
+  console.log("🟢 Tentativo login:", email, password);
 
-    const user = results[0];
-    const ok = await bcrypt.compare(password, user.password);
-    if (!ok) return res.status(401).send("❌ Password errata.");
+  db.query('SELECT * FROM users WHERE email = $1', [email], (err, results) => {
+    if (err) {
+      console.error("❌ Errore DB:", err);
+      return res.send("Errore interno DB");
+    }
 
-    req.session.userId = user.id;
-    req.session.nome = user.nome;
-    req.session.cognome = user.cognome;
-    req.session.email = user.email;
-    req.session.ruolo = user.ruolo;
+    console.log("📊 Risultati query:", results);
 
-    res.send("✅ Login effettuato!");
+    if (results.length === 0 || !results.rows || results.rows.length === 0) {
+      console.warn("⚠️ Nessun utente trovato con email:", email);
+      return res.send('❌ Utente non trovato');
+    }
+
+    const user = results.rows ? results.rows[0] : results[0];
+    console.log("👤 Utente trovato:", user);
+
+    bcrypt.compare(password, user.password, (err, isMatch) => {
+      if (err) {
+        console.error("❌ Errore bcrypt:", err);
+        return res.send("Errore di validazione password");
+      }
+
+      console.log("🔐 Risultato compare:", isMatch);
+
+      if (isMatch) {
+        req.session.user = user;
+        console.log("✅ Login riuscito per:", email);
+        res.redirect('/index.html');
+      } else {
+        console.warn("⚠️ Password errata per:", email);
+        res.send('❌ Password errata');
+      }
+    });
   });
 });
+
 
 app.get('/logout', (req, res) => {
   req.session.destroy(() => res.send("👋 Logout effettuato."));

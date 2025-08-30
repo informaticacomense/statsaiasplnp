@@ -218,7 +218,7 @@ app.post('/partite/finegara', requireLogin, uploadFiles.fields([
   try {
     await db.query(
       `UPDATE iscrizioni 
-       SET note=$1, file_statistico=$2, pdf_statistiche=$3, foto_statistiche=$4, inviato=1
+       SET note=$1, file_statistico=$2, pdf_statistiche=$3, foto_statistiche=$4, inviato=TRUE
        WHERE partita_id=$5 AND user_id=$6`,
       [note || null, fileStat, pdfStat, fotoStat, partita_id, req.session.userId]
     );

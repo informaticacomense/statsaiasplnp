@@ -69,32 +69,31 @@ const uploadFiles = multer({ storage: storage });
 /////////////////////
 
 // Registrazione
-app.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+app.post('/register', async (req, res) => {
+  const { nome, cognome, codice_fiscale, email, password } = req.body;
+
+  if (!nome || !cognome || !codice_fiscale || !email || !password) {
+    return res.status(400).send("⚠️ Tutti i campi obbligatori devono essere compilati!");
+  }
+
   try {
-    const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (result.rows.length === 0) {
-      return res.status(401).send("❌ Utente non trovato");
-    }
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = result.rows[0];
-    const ok = await bcrypt.compare(password, user.password);
-    if (!ok) {
-      return res.status(401).send("❌ Password errata");
-    }
+    const sql = `
+      INSERT INTO users (nome, cognome, codice_fiscale, email, password, ruolo)
+      VALUES ($1,$2,$3,$4,$5,'user')
+      ON CONFLICT (email) DO NOTHING
+    `;
 
-    req.session.userId = user.id;
-    req.session.nome = user.nome;
-    req.session.cognome = user.cognome;
-    req.session.email = user.email;
-    req.session.ruolo = user.ruolo;
+    await db.query(sql, [nome, cognome, codice_fiscale, email, hashedPassword]);
 
-    res.send("✅ Login effettuato!");
+    res.send("✅ Registrazione completata!");
   } catch (err) {
-    console.error("❌ Errore login:", err);
-    res.status(500).send("Errore interno login.");
+    console.error("❌ Errore registrazione:", err);
+    res.status(500).send("❌ Errore registrazione utente.");
   }
 });
+
 
 
 app.get('/logout', (req, res) => {

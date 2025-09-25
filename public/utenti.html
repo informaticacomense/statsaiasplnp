@@ -64,7 +64,8 @@
             </td>
             <td class="px-4 py-2">${u.codice_fiscale || "-"}</td>
             <td class="px-4 py-2">${u.club_appartenenza || "-"}</td>
-            <td class="px-4 py-2">
+            <td class="px-4 py-2 flex gap-2">
+              <a href="utente_dettaglio.html?id=${u.id}" class="bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-800">✏️ Modifica</a>
               <button onclick="eliminaUtente(${u.id})" class="bg-red-600 text-white px-2 py-1 rounded hover:bg-red-800">🗑️ Elimina</button>
             </td>
           </tr>
@@ -101,4 +102,6 @@
     loadUsers();
   </script>
 </body>
+</html>
+
 </html>

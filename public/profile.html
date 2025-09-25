@@ -8,6 +8,7 @@
 <body class="bg-gray-100 min-h-screen p-8">
   <h1 class="text-3xl font-bold text-blue-700 mb-6">✏️ Modifica Profilo</h1>
 
+  <!-- Form Modificabile dall'utente -->
   <form id="profileForm" class="bg-white shadow rounded p-6 max-w-xl space-y-4">
     <input type="text" name="nome" placeholder="Nome" class="w-full border rounded px-3 py-2" required>
     <input type="text" name="cognome" placeholder="Cognome" class="w-full border rounded px-3 py-2" required>
@@ -23,6 +24,17 @@
     <button type="submit" class="w-full bg-blue-600 text-white rounded py-2 hover:bg-blue-700">Salva Modifiche</button>
   </form>
 
+  <!-- Campi in sola lettura -->
+  <div class="bg-white shadow rounded p-6 max-w-xl mt-8">
+    <h2 class="text-xl font-bold text-green-700 mb-4">📘 Dati Formazione</h2>
+    <p><b>Sede Corso:</b> <span id="sede_corso">-</span></p>
+    <p><b>Data Corso:</b> <span id="data_corso">-</span></p>
+    <p><b>Certificazione LNP:</b> 
+      <span id="certificato_lnp">No</span>
+      <span id="badge_lnp" class="hidden bg-green-600 text-white px-2 py-1 rounded text-xs ml-2">✅ Certificato LNP</span>
+    </p>
+  </div>
+
   <p id="resp" class="mt-4 text-green-600"></p>
   <button onclick="window.location.href='/dashboard.html'" class="mt-6 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">⬅️ Torna alla Dashboard</button>
 
@@ -31,10 +43,20 @@
       const res = await fetch('/me');
       if (!res.ok) return window.location.href="/index.html";
       const user = await res.json();
+
+      // Campi modificabili
       for (const [key, value] of Object.entries(user)) {
         if (document.querySelector(`[name="${key}"]`)) {
           document.querySelector(`[name="${key}"]`).value = value || "";
         }
+      }
+
+      // Campi in sola lettura
+      if (user.sede_corso) document.getElementById("sede_corso").innerText = user.sede_corso;
+      if (user.data_corso) document.getElementById("data_corso").innerText = new Date(user.data_corso).toLocaleDateString();
+      document.getElementById("certificato_lnp").innerText = user.certificato_lnp ? "Sì" : "No";
+      if (user.certificato_lnp) {
+        document.getElementById("badge_lnp").classList.remove("hidden");
       }
     }
 

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Dettaglio Utente - Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+
+  <!-- Navbar -->
+  <nav class="bg-gray-800 text-white p-4 flex justify-between">
+    <h1 class="text-xl font-bold">👤 Dettaglio Utente</h1>
+    <div>
+      <a href="utenti.html" class="bg-blue-600 px-3 py-1 rounded hover:bg-blue-800 mr-4">⬅️ Torna a Utenti</a>
+      <button onclick="logout()" class="bg-red-500 px-3 py-1 rounded hover:bg-red-700">Logout</button>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="p-6 max-w-3xl mx-auto bg-white rounded shadow mt-6">
+    <h2 class="text-2xl font-bold mb-4">📋 Profilo Utente</h2>
+    <form id="userForm" class="grid grid-cols-2 gap-4">
+      <input type="hidden" name="id" id="id">
+
+      <label class="col-span-1">Nome
+        <input type="text" name="nome" id="nome" class="border p-2 rounded w-full">
+      </label>
+
+      <label class="col-span-1">Cognome
+        <input type="text" name="cognome" id="cognome" class="border p-2 rounded w-full">
+      </label>
+
+      <label class="col-span-2">Email
+        <input type="email" name="email" id="email" class="border p-2 rounded w-full">
+      </label>
+
+      <label class="col-span-1">Codice Fiscale
+        <input type="text" name="codice_fiscale" id="codice_fiscale" class="border p-2 rounded w-full">
+      </label>
+
+      <label class="col-span-1">Ruolo
+        <select name="ruolo" id="ruolo" class="border p-2 rounded w-full">
+          <option value="user">User</option>
+          <option value="admin">Admin</option>
+        </select>
+      </label>
+
+      <label class="col-span-1">Data di Nascita
+        <input type="date" name="data_nascita" id="data_nascita" class="border p-2 rounded w-full">
+      </label>
+
+      <label class="col-span-1">Luogo di Nascita
+        <input type="text" name="luogo_nascita" id="luogo_nascita" class="border p-2 rounded w-full">
+      </label>
+
+      <label class="col-span-2">Indirizzo Residenza
+        <input type="text" name="indirizzo_residenza" id="indirizzo_residenza" class="border p-2 rounded w-full">
+      </label>
+
+      <label class="col-span-1">Paese
+        <input type="text" name="paese" id="paese" class="border p-2 rounded w-full">
+      </label>
+
+      <label class="col-span-1">CAP
+        <input type="text" name="cap" id="cap" class="border p-2 rounded w-full">
+      </label>
+
+      <label class="col-span-1">Provincia
+        <input type="text" name="provincia" id="provincia" class="border p-2 rounded w-full">
+      </label>
+
+      <label class="col-span-1">Club Appartenenza
+        <input type="text" name="club_appartenenza" id="club_appartenenza" class="border p-2 rounded w-full">
+      </label>
+
+      <label class="col-span-2">Anni di Esperienza
+        <input type="number" name="anni_esperienza" id="anni_esperienza" class="border p-2 rounded w-full">
+      </label>
+
+      <button type="submit" class="col-span-2 bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700">
+        💾 Salva Modifiche
+      </button>
+    </form>
+  </main>
+
+  <!-- Script -->
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const userId = params.get("id");
+
+    if (!userId) {
+      alert("⚠️ Nessun utente selezionato!");
+      window.location.href = "utenti.html";
+    }
+
+    async function loadUser() {
+      const res = await fetch(`/admin/users/${userId}`);
+      if (!res.ok) {
+        alert("Errore caricamento utente");
+        window.location.href = "utenti.html";
+        return;
+      }
+      const user = await res.json();
+      Object.keys(user).forEach(k => {
+        if (document.getElementById(k)) {
+          document.getElementById(k).value = user[k] || "";
+        }
+      });
+    }
+
+    document.getElementById("userForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(e.target).entries());
+      const res = await fetch("/admin/users/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+      alert(await res.text());
+      loadUser();
+    });
+
+    async function logout() {
+      await fetch('/logout');
+      window.location.href = "/";
+    }
+
+    loadUser();
+  </script>
+</body>
+</html>

@@ -163,9 +163,26 @@
 
         let userSection = "";
         if (iscrizione) {
-          userSection = `<p class="mt-2 text-green-700">✅ Sei iscritto come <b>${iscrizione.ruolo}</b></p>`;
+          userSection = `
+            <p class="mt-2 text-green-700">✅ Sei iscritto come <b>${iscrizione.ruolo}</b></p>
+            <p class="text-sm text-gray-600">Nota personale:</p>
+            <textarea class="border rounded w-full p-2 mb-2" 
+              onchange="salvaNota(${p.id}, this.value)">${iscrizione.note || ""}</textarea>
+            <p class="text-sm text-blue-700">📝 Nota Admin: ${p.note_admin || "Nessuna"}</p>
+          `;
         } else {
-          userSection = `<p class="mt-2 text-gray-600">Non sei iscritto a questa partita.</p>`;
+          userSection = `
+            <form onsubmit="registraUtente(event, ${p.id})" class="mt-2 flex flex-wrap gap-2 items-center">
+              <select name="ruolo" required class="border rounded px-2 py-1">
+                <option value="">Seleziona ruolo</option>
+                <option value="caller">Caller</option>
+                <option value="referee">Referee</option>
+                <option value="table">Table</option>
+              </select>
+              <input type="time" name="orario_arrivo" required class="border rounded px-2 py-1">
+              <button type="submit" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-800">Iscriviti</button>
+            </form>
+          `;
         }
 
         container.innerHTML += `
@@ -177,6 +194,33 @@
           </div>
         `;
       });
+    }
+
+    async function registraUtente(e, partitaId) {
+      e.preventDefault();
+      const form = e.target;
+      const data = {
+        partita_id: partitaId,
+        ruolo: form.ruolo.value,
+        orario_arrivo: form.orario_arrivo.value
+      };
+      const res = await fetch('/partite/registrati', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      alert(await res.text());
+      await loadIscrizioniUtente();
+      renderPartite();
+    }
+
+    async function salvaNota(partitaId, nota) {
+      const res = await fetch('/partite/finegara', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ partita_id: partitaId, note: nota })
+      });
+      console.log(await res.text());
     }
 
     ["filterCampionato", "filterGirone", "filterStato"].forEach(id => {

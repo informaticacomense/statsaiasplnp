@@ -407,6 +407,32 @@ app.get('/admin/report-advanced', requireAdmin, async (req, res) => {
   }
 });
 
+// Admin: aggiorna ruolo utente
+app.post('/admin/users/update-role', requireAdmin, async (req, res) => {
+  const { user_id, ruolo } = req.body;
+  if (!user_id || !ruolo) return res.status(400).send("⚠️ Dati mancanti.");
+  try {
+    await db.query("UPDATE users SET ruolo=$1 WHERE id=$2", [ruolo, user_id]);
+    res.send("✅ Ruolo aggiornato con successo!");
+  } catch (err) {
+    console.error("Errore aggiornamento ruolo:", err);
+    res.status(500).send("❌ Errore aggiornamento ruolo.");
+  }
+});
+
+// Admin: elimina utente
+app.delete('/admin/users/delete/:id', requireAdmin, async (req, res) => {
+  const userId = req.params.id;
+  try {
+    await db.query("DELETE FROM users WHERE id=$1", [userId]);
+    res.send("✅ Utente eliminato!");
+  } catch (err) {
+    console.error("Errore eliminazione utente:", err);
+    res.status(500).send("❌ Errore eliminazione utente.");
+  }
+});
+
+
 /////////////////////
 // AVVIO           //
 /////////////////////

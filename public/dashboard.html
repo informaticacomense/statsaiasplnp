@@ -82,13 +82,11 @@
       currentUser = await res.json();
       document.getElementById("userName").innerText = currentUser.nome + " " + currentUser.cognome;
 
-      // Mostra link admin se ruolo=admin
       if (currentUser.ruolo === "admin") {
         document.getElementById("adminLinkPartite").classList.remove("hidden");
         document.getElementById("adminLinkUtenti").classList.remove("hidden");
       }
 
-      // Mostra avviso se manca club_appartenenza
       if (!currentUser.club_appartenenza || currentUser.club_appartenenza.trim() === "") {
         document.getElementById("alertClub").classList.remove("hidden");
       }
@@ -165,10 +163,10 @@
         if (iscrizione) {
           userSection = `
             <p class="mt-2 text-green-700">✅ Sei iscritto come <b>${iscrizione.ruolo}</b></p>
-            <p class="text-sm text-gray-600">Nota personale:</p>
-            <textarea class="border rounded w-full p-2 mb-2" 
-              onchange="salvaNota(${p.id}, this.value)">${iscrizione.note || ""}</textarea>
-            <p class="text-sm text-blue-700">📝 Nota Admin: ${p.note_admin || "Nessuna"}</p>
+            <label class="block text-sm mt-2">✏️ Nota personale:</label>
+            <textarea id="nota_${p.id}" class="border rounded w-full p-2 mb-2">${iscrizione.note || ""}</textarea>
+            <button onclick="salvaNota(${p.id})" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-800">💾 Salva Nota</button>
+            <p class="text-sm text-blue-700 mt-2">📝 Nota Admin: ${p.note_admin || "Nessuna"}</p>
           `;
         } else {
           userSection = `
@@ -179,10 +177,16 @@
                 <option value="referee">Referee</option>
                 <option value="table">Table</option>
               </select>
+              <label>Orario di arrivo:</label>
               <input type="time" name="orario_arrivo" required class="border rounded px-2 py-1">
               <button type="submit" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-800">Iscriviti</button>
             </form>
           `;
+        }
+
+        let reviewButton = "";
+        if (p.stato === "revisionata" || p.stato === "da_rivedere") {
+          reviewButton = `<button onclick="alert('Mostro review per gara ${p.numero_gara}')" class="mt-2 bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-800">👀 Vedi Review</button>`;
         }
 
         container.innerHTML += `
@@ -191,6 +195,7 @@
             <p class="text-sm text-gray-600">Gara ${p.numero_gara} | Girone ${p.girone || '-'} | Campo: ${p.campo_gioco || '-'} | Orario: ${p.orario || '-'}</p>
             <p class="mt-1">📌 Stato: <span class="font-semibold">${p.stato}</span></p>
             ${userSection}
+            ${reviewButton}
           </div>
         `;
       });
@@ -214,13 +219,15 @@
       renderPartite();
     }
 
-    async function salvaNota(partitaId, nota) {
+    async function salvaNota(partitaId) {
+      const nota = document.getElementById(`nota_${partitaId}`).value;
       const res = await fetch('/partite/finegara', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ partita_id: partitaId, note: nota })
       });
-      console.log(await res.text());
+      alert(await res.text());
+      await loadIscrizioniUtente();
     }
 
     ["filterCampionato", "filterGirone", "filterStato"].forEach(id => {
@@ -236,3 +243,4 @@
   </script>
 </body>
 </html>
+

@@ -324,7 +324,7 @@ app.get('/report-partite', requireAdmin, async (req, res) => {
   }
 });
 
-// Report avanzato (solo partite con file)
+// Report avanzato
 app.get('/admin/report-advanced', requireAdmin, async (req, res) => {
   try {
     const sql = `
@@ -356,7 +356,7 @@ app.post('/partite/stato', requireAdmin, async (req, res) => {
     res.send("✅ Stato partita aggiornato!");
   } catch (err) {
     console.error("Errore update partita:", err);
-    res.status(500).send("❌ Errore aggiornamento stato.");
+    res.status(500).send("❌ Errore aggiornamento stato partita.");
   }
 });
 

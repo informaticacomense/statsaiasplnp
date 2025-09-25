@@ -174,7 +174,7 @@ app.post('/update-profile', requireLogin, async (req, res) => {
 });
 
 /////////////////////
-// PARTITE & ADMIN //
+// PARTITE         //
 /////////////////////
 
 // Lista partite
@@ -296,6 +296,129 @@ app.get('/mie-iscrizioni', requireLogin, async (req, res) => {
     console.error("Errore query mie-iscrizioni:", err);
     res.status(500).send("Errore caricamento iscrizioni utente.");
   }
+});
+
+/////////////////////
+// ADMIN PARTITE   //
+/////////////////////
+
+// Report iscrizioni (dettagliato)
+app.get('/report-partite', requireAdmin, async (req, res) => {
+  try {
+    const sql = `
+      SELECT p.id AS partita_id, p.campionato, p.girone, p.data_gara, p.numero_gara, 
+             p.squadra_a, p.squadra_b, p.campo_gioco, p.orario, p.stato, p.risultato_finale, p.note_admin,
+             u.id AS user_id, u.nome, u.cognome, u.email,
+             i.id AS iscrizione_id, i.ruolo, i.orario_arrivo, i.note, 
+             i.file_statistico, i.pdf_statistiche, i.foto_statistiche, i.inviato
+      FROM partite p
+      LEFT JOIN iscrizioni i ON p.id = i.partita_id
+      LEFT JOIN users u ON i.user_id = u.id
+      ORDER BY p.data_gara ASC, p.id, u.cognome
+    `;
+    const result = await db.query(sql);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Errore query report-partite:", err);
+    res.status(500).send("Errore caricamento report.");
+  }
+});
+
+// Report avanzato (solo partite con file)
+app.get('/admin/report-advanced', requireAdmin, async (req, res) => {
+  try {
+    const sql = `
+      SELECT p.id AS partita_id, p.campionato, p.girone, p.data_gara, p.numero_gara,
+             p.squadra_a, p.squadra_b, p.campo_gioco, p.orario, p.stato, p.risultato_finale,
+             COALESCE(MAX(i.file_statistico), '') AS file_statistico,
+             COALESCE(MAX(i.pdf_statistiche), '') AS pdf_statistiche,
+             COALESCE(MAX(i.foto_statistiche), '') AS foto_statistiche
+      FROM partite p
+      LEFT JOIN iscrizioni i ON p.id = i.partita_id
+      GROUP BY p.id
+      ORDER BY p.campionato, p.girone, p.data_gara ASC;
+    `;
+    const result = await db.query(sql);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Errore report avanzato:", err);
+    res.status(500).send("Errore caricamento report avanzato.");
+  }
+});
+
+// Admin aggiorna stato partita
+app.post('/partite/stato', requireAdmin, async (req, res) => {
+  const { partita_id, stato, note_admin } = req.body;
+  if (!partita_id || !stato) return res.status(400).send("⚠️ Mancano dati.");
+  try {
+    await db.query(`UPDATE partite SET stato=$1, note_admin=$2 WHERE id=$3`,
+      [stato, note_admin || null, partita_id]);
+    res.send("✅ Stato partita aggiornato!");
+  } catch (err) {
+    console.error("Errore update partita:", err);
+    res.status(500).send("❌ Errore aggiornamento stato.");
+  }
+});
+
+// Admin aggiorna ruolo iscritto
+app.post('/iscrizioni/ruolo', requireAdmin, async (req, res) => {
+  const { iscrizione_id, ruolo } = req.body;
+  if (!iscrizione_id || !ruolo) return res.status(400).send("⚠️ Dati mancanti.");
+  try {
+    await db.query(`UPDATE iscrizioni SET ruolo=$1 WHERE id=$2`, [ruolo, iscrizione_id]);
+    res.send("✅ Ruolo aggiornato!");
+  } catch (err) {
+    console.error("Errore update ruolo iscrizione:", err);
+    res.status(500).send("❌ Errore aggiornamento ruolo iscrizione.");
+  }
+});
+
+// Admin reset partite/iscrizioni
+app.post('/admin/reset', requireAdmin, async (req, res) => {
+  try {
+    await db.query("DELETE FROM iscrizioni");
+    await db.query("DELETE FROM partite");
+    res.send("✅ Tutte le partite e iscrizioni eliminate!");
+  } catch (err) {
+    console.error("Errore reset:", err);
+    res.status(500).send("❌ Errore reset.");
+  }
+});
+
+// Admin carica partite da CSV
+app.post('/admin/upload-csv', requireAdmin, uploadFiles.single('partite_csv'), async (req, res) => {
+  if (!req.file) return res.status(400).send("⚠️ Nessun file caricato.");
+
+  const results = [];
+  fs.createReadStream(req.file.path)
+    .pipe(csv({ separator: ',' }))
+    .on('data', (row) => results.push(row))
+    .on('end', async () => {
+      if (results.length === 0) return res.status(400).send("⚠️ CSV vuoto.");
+
+      try {
+        for (const r of results) {
+          const sql = `
+            INSERT INTO partite (campionato, girone, data_gara, numero_gara, squadra_a, squadra_b, campo_gioco, orario, stato)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'da_giocare')
+          `;
+          await db.query(sql, [
+            r.campionato,
+            r.girone || null,
+            r.data_gara,
+            r.numero_gara,
+            r.squadra_a,
+            r.squadra_b,
+            r.campo_gioco,
+            r.orario
+          ]);
+        }
+        res.send(`✅ Caricate ${results.length} partite dal CSV!`);
+      } catch (err) {
+        console.error("Errore inserimento partite da CSV:", err);
+        res.status(500).send("Errore import CSV.");
+      }
+    });
 });
 
 /////////////////////

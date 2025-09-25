@@ -7,20 +7,16 @@
 </head>
 <body class="bg-gray-100">
 
-  <!-- Navbar -->
   <nav class="bg-green-600 text-white p-4 flex justify-between">
     <h1 class="text-xl font-bold">🏀 StatsAIASPLnp - Area Riservata</h1>
     <div>
       <span id="userName" class="mr-4"></span>
       <a href="profile.html" class="mr-4 underline">Profilo</a>
-      <!-- Link admin visibili solo se ruolo=admin -->
-      <a href="admin.html" id="adminLinkPartite" class="mr-4 underline hidden">⚙️ Gestione Partite</a>
-      <a href="utenti.html" id="adminLinkUtenti" class="mr-4 underline hidden">👥 Gestione Utenti</a>
+      <a href="admin.html" id="adminLink" class="mr-4 underline hidden">Gestione Partite</a>
       <button onclick="logout()" class="bg-red-500 px-3 py-1 rounded hover:bg-red-700">Logout</button>
     </div>
   </nav>
 
-  <!-- Main -->
   <main class="p-6 max-w-6xl mx-auto">
     <h2 class="text-2xl font-bold mb-4">📅 Crea o gestisci le tue partite</h2>
 
@@ -61,7 +57,6 @@
     <div id="partiteContainer" class="space-y-6"></div>
   </main>
 
-  <!-- Script -->
   <script>
     let currentUser = null;
     let iscrizioniUtente = [];
@@ -76,8 +71,7 @@
       currentUser = await res.json();
       document.getElementById("userName").innerText = currentUser.nome + " " + currentUser.cognome;
       if (currentUser.ruolo === "admin") {
-        document.getElementById("adminLinkPartite").classList.remove("hidden");
-        document.getElementById("adminLinkUtenti").classList.remove("hidden");
+        document.getElementById("adminLink").classList.remove("hidden");
       }
       await loadIscrizioniUtente();
       await loadPartite();
@@ -149,21 +143,112 @@
 
         let userSection = "";
         if (iscrizione) {
-          userSection = `<p class="mt-2 text-green-700">✅ Sei iscritto come <b>${iscrizione.ruolo}</b></p>`;
+          let finegaraForm = `
+            <button onclick="toggleFineGaraForm(${p.id})" class="bg-purple-600 text-white px-3 py-1 rounded mt-2 hover:bg-purple-700">
+              📄 Fine Gara
+            </button>
+            <form id="finegara-${p.id}" class="hidden mt-3 border p-3 rounded bg-gray-50" enctype="multipart/form-data">
+              <input type="hidden" name="partita_id" value="${p.id}">
+          `;
+
+          if (iscrizione.ruolo === "caller") {
+            finegaraForm += `
+              <label class="block text-sm mb-1">🏆 Punteggio finale</label>
+              <input type="text" name="risultato_finale" placeholder="Es: 75-68" class="border p-2 rounded w-full mb-2">
+            `;
+          } else {
+            finegaraForm += `<p class="text-sm text-gray-600 mb-2">⚠️ Solo il <b>Caller</b> può inserire il risultato finale.</p>`;
+          }
+
+          finegaraForm += `
+              <label class="block text-sm mb-1">📝 Note</label>
+              <textarea name="note" class="border p-2 rounded w-full mb-2"></textarea>
+
+              <label class="block text-sm mb-1">📑 Carica File FIBA LIVE STATS</label>
+              <input type="file" name="file_stat" class="mb-2">
+
+              <label class="block text-sm mb-1">📊 PDF statistiche</label>
+              <input type="file" name="pdf_stat" accept=".pdf" class="mb-2">
+
+              <button type="submit" class="bg-green-600 text-white px-3 py-1 rounded">Salva</button>
+            </form>
+          `;
+
+          if (p.note_admin) {
+            finegaraForm += `
+              <div class="mt-3 p-2 bg-yellow-100 border border-yellow-400 rounded">
+                <p class="text-sm"><b>📝 Nota di revisione Admin:</b></p>
+                <p class="text-sm">${p.note_admin}</p>
+              </div>
+            `;
+          }
+
+          userSection = `
+            <p class="mt-2 text-green-700">✅ Sei iscritto come <b>${iscrizione.ruolo}</b> (arrivo: ${iscrizione.orario_arrivo || '-'})</p>
+            ${finegaraForm}
+          `;
         } else {
-          userSection = `<p class="mt-2 text-gray-600">Non sei iscritto a questa partita.</p>`;
+          userSection = `
+            <button onclick="toggleIscrizioneForm(${p.id})" class="bg-blue-600 text-white px-3 py-1 rounded mt-2 hover:bg-blue-700">
+              ➕ Registrati
+            </button>
+            <form id="iscrizione-${p.id}" class="hidden mt-3 border p-3 rounded bg-gray-50">
+              <label class="block text-sm mb-1">Ruolo</label>
+              <select id="ruolo-${p.id}" class="border p-2 rounded w-full mb-2">
+                <option value="caller">Caller</option>
+                <option value="statistician">Statistician</option>
+                <option value="standby">Standby</option>
+              </select>
+              <label class="block text-sm mb-1">Orario di arrivo</label>
+              <input type="time" id="orario-${p.id}" class="border p-2 rounded w-full mb-2">
+              <button onclick="confermaIscrizione(event, ${p.id})" class="bg-green-600 text-white px-3 py-1 rounded">Conferma iscrizione</button>
+            </form>
+          `;
         }
 
         container.innerHTML += `
           <div class="bg-white p-4 rounded shadow">
             <h3 class="text-lg font-bold">${p.campionato} - ${p.squadra_a} vs ${p.squadra_b}</h3>
-            <p class="text-sm text-gray-600">Gara ${p.numero_gara} | Girone ${p.girone || '-'} | Campo: ${p.campo_gioco || '-'} | Orario: ${p.orario || '-'}</p>
-            <p class="mt-1">📌 Stato: <span class="font-semibold">${p.stato}</span></p>
+            <p class="text-sm text-gray-600">
+              Gara ${p.numero_gara} | Girone ${p.girone || '-'} | Campo: ${p.campo_gioco || '-'} | Orario: ${p.orario || '-'}
+            </p>
+            <p class="mt-1">📌 Stato: <span class="font-semibold">${p.stato}</span> ${p.risultato_finale ? `| 🏆 Risultato: ${p.risultato_finale}` : ""}</p>
             ${userSection}
           </div>
         `;
       });
     }
+
+    function toggleIscrizioneForm(partitaId) {
+      document.getElementById(`iscrizione-${partitaId}`).classList.toggle("hidden");
+    }
+
+    async function confermaIscrizione(e, partitaId) {
+      e.preventDefault();
+      const ruolo = document.getElementById(`ruolo-${partitaId}`).value;
+      const orario = document.getElementById(`orario-${partitaId}`).value;
+      const res = await fetch('/partite/registrati', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ partita_id: partitaId, ruolo, orario_arrivo: orario })
+      });
+      alert(await res.text());
+      loadUser();
+    }
+
+    function toggleFineGaraForm(partitaId) {
+      document.getElementById(`finegara-${partitaId}`).classList.toggle("hidden");
+    }
+
+    document.addEventListener("submit", async (e) => {
+      if (e.target.id.startsWith("finegara-")) {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const res = await fetch('/partite/finegara', { method: 'POST', body: formData });
+        alert(await res.text());
+        loadUser();
+      }
+    });
 
     ["filterCampionato", "filterGirone", "filterStato"].forEach(id => {
       document.getElementById(id).addEventListener("change", renderPartite);
@@ -178,3 +263,4 @@
   </script>
 </body>
 </html>
+

@@ -504,6 +504,20 @@ app.post('/admin/users/update', requireAdmin, async (req, res) => {
   }
 });
 
+// Admin: crea i campi mancanti su tabella users
+app.post('/admin/create-missing-fields', requireAdmin, async (req, res) => {
+  try {
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS sede_corso VARCHAR(255)`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS data_corso DATE`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS certificato_lnp BOOLEAN DEFAULT FALSE`);
+    res.send("✅ Campi aggiunti (se mancanti).");
+  } catch (err) {
+    console.error("Errore creazione campi:", err);
+    res.status(500).send("❌ Errore creazione campi.");
+  }
+});
+
+
 /////////////////////
 // AVVIO           //
 /////////////////////

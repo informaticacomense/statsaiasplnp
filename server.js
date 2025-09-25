@@ -296,6 +296,32 @@ app.post('/admin/create-missing-fields', requireAdmin, async (req, res) => {
   }
 });
 
+// Admin: elenco utenti per stampa
+app.get('/admin/users/print', requireAdmin, async (req, res) => {
+  const { filter } = req.query; // "all", "certificati", "non_certificati"
+  try {
+    let sql = `
+      SELECT nome, cognome, club_appartenenza, certificato_lnp
+      FROM users
+      ORDER BY cognome, nome
+    `;
+
+    let result = await db.query(sql);
+
+    if (filter === "certificati") {
+      result.rows = result.rows.filter(u => u.certificato_lnp);
+    } else if (filter === "non_certificati") {
+      result.rows = result.rows.filter(u => !u.certificato_lnp);
+    }
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Errore caricamento utenti stampa:", err);
+    res.status(500).send("❌ Errore caricamento elenco utenti.");
+  }
+});
+
+
 /////////////////////
 // AVVIO           //
 /////////////////////

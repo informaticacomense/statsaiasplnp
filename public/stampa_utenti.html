@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Stampa Elenco Utenti</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @media print {
+      button, select { display: none; }
+    }
+  </style>
+</head>
+<body class="bg-gray-100 p-6">
+
+  <div class="flex justify-between items-center mb-4">
+    <h1 class="text-2xl font-bold">📋 Elenco Utenti</h1>
+    <div class="flex gap-2">
+      <select id="filter" class="border rounded px-2 py-1">
+        <option value="all">Tutti</option>
+        <option value="certificati">Certificati LNP</option>
+        <option value="non_certificati">Non Certificati</option>
+      </select>
+      <button onclick="loadUsers()" class="bg-blue-600 text-white px-3 py-1 rounded">🔄 Carica</button>
+      <button onclick="window.print()" class="bg-green-600 text-white px-3 py-1 rounded">🖨️ Stampa</button>
+    </div>
+  </div>
+
+  <table class="w-full bg-white shadow rounded text-sm">
+    <thead class="bg-green-600 text-white">
+      <tr>
+        <th class="px-4 py-2 text-left">Nome</th>
+        <th class="px-4 py-2 text-left">Cognome</th>
+        <th class="px-4 py-2 text-left">Club</th>
+        <th class="px-4 py-2 text-left">Certificazione</th>
+      </tr>
+    </thead>
+    <tbody id="usersTable" class="divide-y divide-gray-200"></tbody>
+  </table>
+
+  <script>
+    async function loadUsers() {
+      const filter = document.getElementById("filter").value;
+      const res = await fetch(`/admin/users/print?filter=${filter}`);
+      const users = await res.json();
+      const tbody = document.getElementById("usersTable");
+      tbody.innerHTML = "";
+
+      if (users.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center text-gray-500 py-4">Nessun utente trovato</td></tr>`;
+        return;
+      }
+
+      users.forEach(u => {
+        tbody.innerHTML += `
+          <tr>
+            <td class="px-4 py-2">${u.nome}</td>
+            <td class="px-4 py-2">${u.cognome}</td>
+            <td class="px-4 py-2">${u.club_appartenenza || "-"}</td>
+            <td class="px-4 py-2">
+              ${u.certificato_lnp ? "✅ Certificato LNP" : "❌ Non certificato"}
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    loadUsers();
+  </script>
+</body>
+</html>

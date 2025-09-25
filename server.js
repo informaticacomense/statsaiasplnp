@@ -183,7 +183,7 @@ app.post('/partite/crea', requireLogin, async (req, res) => {
   const { campionato, girone, data_gara, numero_gara, squadra_a, squadra_b, campo_gioco, orario } = req.body;
 
   if (!campionato || !data_gara || !numero_gara || !squadra_a || !squadra_b) {
-    return res.status(400).send("⚠️ Compila tutti i campi obbligatori (campionato, data, numero gara, squadra A, squadra B).");
+    return res.status(400).send("⚠️ Compila tutti i campi obbligatori.");
   }
 
   try {
@@ -204,10 +204,9 @@ app.post('/partite/crea', requireLogin, async (req, res) => {
     res.send("✅ Partita creata con successo!");
   } catch (err) {
     console.error("Errore creazione partita:", err);
-    res.status(500).send("❌ Errore durante la creazione della partita.");
+    res.status(500).send("❌ Errore creazione partita.");
   }
 });
-
 
 // Iscrizione utente
 app.post('/partite/registrati', requireLogin, async (req, res) => {
@@ -407,7 +406,29 @@ app.get('/admin/report-advanced', requireAdmin, async (req, res) => {
   }
 });
 
-// Admin: aggiorna ruolo utente
+/////////////////////
+// ADMIN UTENTI    //
+/////////////////////
+
+// Lista utenti
+app.get('/admin/users', requireAdmin, async (req, res) => {
+  try {
+    const sql = `
+      SELECT id, nome, cognome, email, codice_fiscale, ruolo,
+             data_nascita, luogo_nascita, indirizzo_residenza,
+             paese, cap, provincia, club_appartenenza, anni_esperienza
+      FROM users
+      ORDER BY cognome, nome
+    `;
+    const result = await db.query(sql);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Errore caricamento utenti:", err);
+    res.status(500).send("❌ Errore caricamento utenti.");
+  }
+});
+
+// Aggiorna ruolo
 app.post('/admin/users/update-role', requireAdmin, async (req, res) => {
   const { user_id, ruolo } = req.body;
   if (!user_id || !ruolo) return res.status(400).send("⚠️ Dati mancanti.");
@@ -420,7 +441,7 @@ app.post('/admin/users/update-role', requireAdmin, async (req, res) => {
   }
 });
 
-// Admin: elimina utente
+// Elimina utente
 app.delete('/admin/users/delete/:id', requireAdmin, async (req, res) => {
   const userId = req.params.id;
   try {
@@ -432,7 +453,7 @@ app.delete('/admin/users/delete/:id', requireAdmin, async (req, res) => {
   }
 });
 
-// Admin: dettaglio utente
+// Dettaglio utente
 app.get('/admin/users/:id', requireAdmin, async (req, res) => {
   const userId = req.params.id;
   try {
@@ -451,7 +472,7 @@ app.get('/admin/users/:id', requireAdmin, async (req, res) => {
   }
 });
 
-// Admin: aggiorna dati utente
+// Aggiorna dati utente
 app.post('/admin/users/update', requireAdmin, async (req, res) => {
   const {
     id, nome, cognome, email, codice_fiscale, ruolo,
@@ -483,10 +504,10 @@ app.post('/admin/users/update', requireAdmin, async (req, res) => {
   }
 });
 
-
 /////////////////////
 // AVVIO           //
 /////////////////////
 app.listen(PORT, () => {
   console.log(`🚀 Server avviato su http://localhost:${PORT}`);
 });
+

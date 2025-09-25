@@ -9,100 +9,160 @@
 
   <!-- Navbar -->
   <nav class="bg-gray-800 text-white p-4 flex justify-between">
-    <h1 class="text-xl font-bold">⚙️ Pannello Admin - StatsAIASPLnp</h1>
+    <h1 class="text-xl font-bold">⚙️ Gestione Partite - StatsAIASPLnp</h1>
     <div class="flex gap-2">
       <a href="utenti.html" class="bg-green-600 px-3 py-1 rounded hover:bg-green-800">👥 Gestione Utenti</a>
-      <a href="report.html" class="bg-blue-600 px-3 py-1 rounded hover:bg-blue-800">📊 Report Partite</a>
-      <button onclick="cancellaTutto()" class="bg-red-600 px-3 py-1 rounded hover:bg-red-800">🗑️ Cancella tutto</button>
+      <button onclick="resetPartite()" class="bg-red-600 px-3 py-1 rounded hover:bg-red-800">♻️ Reset Partite</button>
       <button onclick="logout()" class="bg-red-500 px-3 py-1 rounded hover:bg-red-700">Logout</button>
     </div>
   </nav>
 
-  <!-- Caricamento CSV -->
-  <h2 class="text-2xl font-bold mb-4">📂 Carica Partite da CSV</h2>
-  <form id="csvForm" class="mb-6 border p-4 bg-white rounded shadow" enctype="multipart/form-data">
-    <input type="file" name="partite_csv" accept=".csv" class="mb-2">
-    <button type="submit" class="bg-blue-600 text-white px-3 py-1 rounded">Carica CSV</button>
-  </form>
-
-  <!-- Elenco partite -->
-  <main class="p-6 max-w-6xl mx-auto">
+  <!-- Main -->
+  <main class="p-6 max-w-7xl mx-auto">
     <h2 class="text-2xl font-bold mb-4">📋 Elenco Partite e Iscritti</h2>
-    <div id="partiteContainer" class="space-y-8"></div>
+
+    <!-- Upload CSV -->
+    <div class="bg-white p-4 rounded shadow mb-6">
+      <h3 class="font-bold mb-2">📂 Importa Partite da CSV</h3>
+      <form id="csvForm" class="flex gap-2">
+        <input type="file" name="partite_csv" class="border p-2 rounded" required>
+        <button type="submit" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-800">Carica</button>
+      </form>
+      <p id="csvResp" class="text-green-600 mt-2"></p>
+    </div>
+
+    <!-- Tabella Partite -->
+    <div class="overflow-x-auto">
+      <table class="min-w-full bg-white shadow rounded-lg text-sm">
+        <thead class="bg-blue-600 text-white">
+          <tr>
+            <th class="px-2 py-2">Data</th>
+            <th class="px-2 py-2">Campionato</th>
+            <th class="px-2 py-2">Gara</th>
+            <th class="px-2 py-2">Squadre</th>
+            <th class="px-2 py-2">Stato</th>
+            <th class="px-2 py-2">Note Admin</th>
+            <th class="px-2 py-2">Iscritti</th>
+          </tr>
+        </thead>
+        <tbody id="partiteTable" class="divide-y divide-gray-200"></tbody>
+      </table>
+    </div>
   </main>
 
   <script>
     async function loadPartite() {
       const res = await fetch('/report-partite');
+      const tbody = document.getElementById("partiteTable");
+      tbody.innerHTML = "";
+
       if (!res.ok) {
-        document.getElementById("partiteContainer").innerHTML = "<p class='text-red-600'>Errore nel caricamento partite.</p>";
+        tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-red-600">Errore nel caricamento partite</td></tr>`;
         return;
       }
-      const dati = await res.json();
-      const container = document.getElementById("partiteContainer");
-      container.innerHTML = "";
 
+      const rows = await res.json();
+      if (rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-gray-500">Nessuna partita trovata</td></tr>`;
+        return;
+      }
+
+      // Raggruppa per partita
       const grouped = {};
-      dati.forEach(r => {
-        if (!grouped[r.partita_id]) grouped[r.partita_id] = { info: r, iscritti: [] };
-        if (r.user_id) grouped[r.partita_id].iscritti.push(r);
+      rows.forEach(r => {
+        if (!grouped[r.partita_id]) grouped[r.partita_id] = { ...r, iscritti: [] };
+        if (r.user_id) {
+          grouped[r.partita_id].iscritti.push(r);
+        }
       });
 
-      Object.values(grouped).forEach(gruppo => {
-        const p = gruppo.info;
-        let iscrittiHTML = gruppo.iscritti.length
-          ? gruppo.iscritti.map(i => `
-            <tr class="border-b">
-              <td class="p-2">${i.nome} ${i.cognome}</td>
-              <td class="p-2">${i.email}</td>
-              <td class="p-2">${i.ruolo}</td>
-            </tr>`).join("")
-          : "<tr><td colspan='3' class='p-2 text-gray-500'>Nessun iscritto</td></tr>";
+      Object.values(grouped).forEach(p => {
+        let iscrittiHtml = "<p class='text-gray-500 italic'>Nessun iscritto</p>";
+        if (p.iscritti.length > 0) {
+          iscrittiHtml = p.iscritti.map(i => `
+            <div class="border p-2 rounded mb-2">
+              <p><b>${i.nome} ${i.cognome}</b> (${i.email})</p>
+              <label class="text-sm">Ruolo:</label>
+              <select onchange="aggiornaRuolo(${i.iscrizione_id}, this.value)" class="border rounded px-1 py-0.5">
+                <option value="caller" ${i.ruolo==='caller'?'selected':''}>Caller</option>
+                <option value="referee" ${i.ruolo==='referee'?'selected':''}>Referee</option>
+                <option value="table" ${i.ruolo==='table'?'selected':''}>Table</option>
+              </select>
+            </div>
+          `).join("");
+        }
 
-        container.innerHTML += `
-          <div class="bg-white p-4 rounded shadow">
-            <h3 class="text-lg font-bold">${p.campionato} - ${p.squadra_a} vs ${p.squadra_b}</h3>
-            <p class="text-sm text-gray-600">Gara ${p.numero_gara} | Campo: ${p.campo_gioco || '-'} | Orario: ${p.orario || '-'}</p>
-            <p class="mt-1">📌 Stato: <span class="font-semibold">${p.stato}</span></p>
-
-            <h4 class="mt-4 font-semibold">👥 Iscritti</h4>
-            <table class="w-full border mt-2 text-sm">
-              <thead class="bg-gray-200">
-                <tr><th class="p-2">Nome</th><th class="p-2">Email</th><th class="p-2">Ruolo</th></tr>
-              </thead>
-              <tbody>${iscrittiHTML}</tbody>
-            </table>
-          </div>
+        tbody.innerHTML += `
+          <tr>
+            <td class="px-2 py-2">${p.data_gara ? new Date(p.data_gara).toLocaleDateString() : "-"}</td>
+            <td class="px-2 py-2">${p.campionato || "-"}</td>
+            <td class="px-2 py-2">${p.numero_gara || "-"}</td>
+            <td class="px-2 py-2">${p.squadra_a} vs ${p.squadra_b}</td>
+            <td class="px-2 py-2">
+              <select onchange="aggiornaStato(${p.partita_id}, this.value, '${p.note_admin || ''}')" class="border rounded px-1 py-0.5">
+                <option value="da_giocare" ${p.stato==='da_giocare'?'selected':''}>Da giocare</option>
+                <option value="in_corso" ${p.stato==='in_corso'?'selected':''}>In corso</option>
+                <option value="terminata" ${p.stato==='terminata'?'selected':''}>Terminata</option>
+                <option value="revisionata" ${p.stato==='revisionata'?'selected':''}>Revisionata</option>
+                <option value="da_rivedere" ${p.stato==='da_rivedere'?'selected':''}>Da rivedere</option>
+              </select>
+            </td>
+            <td class="px-2 py-2">
+              <input type="text" value="${p.note_admin || ''}" 
+                onchange="aggiornaStato(${p.partita_id}, '${p.stato}', this.value)" 
+                class="border px-1 py-0.5 rounded w-40">
+            </td>
+            <td class="px-2 py-2">${iscrittiHtml}</td>
+          </tr>
         `;
       });
     }
 
-    async function cancellaTutto() {
-      if (!confirm("Sei sicuro di voler cancellare TUTTE le partite e iscrizioni?")) return;
+    async function aggiornaStato(partitaId, stato, note) {
+      const res = await fetch('/partite/stato', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ partita_id: partitaId, stato, note_admin: note })
+      });
+      alert(await res.text());
+      loadPartite();
+    }
+
+    async function aggiornaRuolo(iscrizioneId, ruolo) {
+      const res = await fetch('/iscrizioni/ruolo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ iscrizione_id: iscrizioneId, ruolo })
+      });
+      alert(await res.text());
+      loadPartite();
+    }
+
+    async function resetPartite() {
+      if (!confirm("⚠️ Vuoi eliminare tutte le partite e iscrizioni?")) return;
       const res = await fetch('/admin/reset', { method: 'POST' });
       alert(await res.text());
       loadPartite();
     }
+
+    document.getElementById('csvForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const res = await fetch('/admin/upload-csv', {
+        method: 'POST',
+        body: formData
+      });
+      document.getElementById('csvResp').innerText = await res.text();
+      loadPartite();
+    });
 
     async function logout() {
       await fetch('/logout');
       window.location.href = "/";
     }
 
-    document.getElementById('csvForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const formData = new FormData(e.target);
-      const res = await fetch('/admin/upload-csv', { method: 'POST', body: formData });
-      alert(await res.text());
-      loadPartite();
-    });
-
     loadPartite();
   </script>
 </body>
 </html>
 
-
-  
-</body>
-</html>

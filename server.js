@@ -432,6 +432,57 @@ app.delete('/admin/users/delete/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// Admin: dettaglio utente
+app.get('/admin/users/:id', requireAdmin, async (req, res) => {
+  const userId = req.params.id;
+  try {
+    const sql = `
+      SELECT id, nome, cognome, email, codice_fiscale, ruolo,
+             data_nascita, luogo_nascita, indirizzo_residenza,
+             paese, cap, provincia, club_appartenenza, anni_esperienza
+      FROM users WHERE id=$1
+    `;
+    const result = await db.query(sql, [userId]);
+    if (result.rows.length === 0) return res.status(404).send("❌ Utente non trovato");
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Errore dettaglio utente:", err);
+    res.status(500).send("❌ Errore caricamento utente.");
+  }
+});
+
+// Admin: aggiorna dati utente
+app.post('/admin/users/update', requireAdmin, async (req, res) => {
+  const {
+    id, nome, cognome, email, codice_fiscale, ruolo,
+    data_nascita, luogo_nascita, indirizzo_residenza,
+    paese, cap, provincia, club_appartenenza, anni_esperienza
+  } = req.body;
+
+  if (!id) return res.status(400).send("⚠️ ID utente mancante.");
+
+  try {
+    const sql = `
+      UPDATE users SET
+        nome=$1, cognome=$2, email=$3, codice_fiscale=$4, ruolo=$5,
+        data_nascita=$6, luogo_nascita=$7, indirizzo_residenza=$8,
+        paese=$9, cap=$10, provincia=$11, club_appartenenza=$12, anni_esperienza=$13
+      WHERE id=$14
+    `;
+    await db.query(sql, [
+      nome, cognome, email, codice_fiscale, ruolo,
+      data_nascita || null, luogo_nascita || null, indirizzo_residenza || null,
+      paese || null, cap || null, provincia || null,
+      club_appartenenza || null, anni_esperienza || null,
+      id
+    ]);
+    res.send("✅ Profilo utente aggiornato!");
+  } catch (err) {
+    console.error("Errore update utente (admin):", err);
+    res.status(500).send("❌ Errore aggiornamento utente.");
+  }
+});
+
 
 /////////////////////
 // AVVIO           //

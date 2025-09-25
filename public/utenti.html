@@ -11,13 +11,14 @@
   <nav class="bg-gray-800 text-white p-4 flex justify-between">
     <h1 class="text-xl font-bold">👥 Gestione Utenti - StatsAIASPLnp</h1>
     <div>
-      <a href="admin.html" class="bg-blue-600 px-3 py-1 rounded hover:bg-blue-800 mr-4">⚙️ Pannello Partite</a>
+      <a href="admin.html" class="bg-blue-600 px-3 py-1 rounded hover:bg-blue-800 mr-4">⚙️ Gestione Partite</a>
+      <a href="crea_campi.html" class="bg-yellow-600 px-3 py-1 rounded hover:bg-yellow-800 mr-4">🛠️ Crea Campi</a>
       <button onclick="logout()" class="bg-red-500 px-3 py-1 rounded hover:bg-red-700">Logout</button>
     </div>
   </nav>
 
   <!-- Main -->
-  <main class="p-6 max-w-6xl mx-auto">
+  <main class="p-6 max-w-7xl mx-auto">
     <h2 class="text-2xl font-bold mb-4">📋 Elenco Utenti</h2>
 
     <div class="overflow-x-auto">
@@ -29,6 +30,9 @@
             <th class="px-4 py-2 text-left">Ruolo</th>
             <th class="px-4 py-2 text-left">Codice Fiscale</th>
             <th class="px-4 py-2 text-left">Club</th>
+            <th class="px-4 py-2 text-left">Sede Corso</th>
+            <th class="px-4 py-2 text-left">Data Corso</th>
+            <th class="px-4 py-2 text-left">Certificazione</th>
             <th class="px-4 py-2 text-left">Azioni</th>
           </tr>
         </thead>
@@ -39,12 +43,11 @@
 
   <!-- Script -->
   <script>
-    // Carica elenco utenti
     async function loadUsers() {
       const res = await fetch('/admin/users');
       if (!res.ok) {
         document.getElementById("usersTable").innerHTML =
-          "<tr><td colspan='6' class='p-4 text-red-600'>Errore caricamento utenti</td></tr>";
+          "<tr><td colspan='9' class='p-4 text-red-600'>Errore caricamento utenti</td></tr>";
         return;
       }
       const users = await res.json();
@@ -64,6 +67,13 @@
             </td>
             <td class="px-4 py-2">${u.codice_fiscale || "-"}</td>
             <td class="px-4 py-2">${u.club_appartenenza || "-"}</td>
+            <td class="px-4 py-2">${u.sede_corso || "-"}</td>
+            <td class="px-4 py-2">${u.data_corso ? new Date(u.data_corso).toLocaleDateString() : "-"}</td>
+            <td class="px-4 py-2">
+              ${u.certificato_lnp 
+                ? '<span class="bg-green-600 text-white text-xs px-2 py-1 rounded">✅ LNP</span>' 
+                : '<span class="bg-gray-400 text-white text-xs px-2 py-1 rounded">No</span>'}
+            </td>
             <td class="px-4 py-2 flex gap-2">
               <a href="utente_dettaglio.html?id=${u.id}" class="bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-800">✏️ Modifica</a>
               <button onclick="eliminaUtente(${u.id})" class="bg-red-600 text-white px-2 py-1 rounded hover:bg-red-800">🗑️ Elimina</button>
@@ -73,7 +83,6 @@
       });
     }
 
-    // Aggiorna ruolo
     async function aggiornaRuolo(userId, ruolo) {
       const res = await fetch('/admin/users/update-role', {
         method: 'POST',
@@ -84,7 +93,6 @@
       loadUsers();
     }
 
-    // Elimina utente
     async function eliminaUtente(userId) {
       if (!confirm("Sei sicuro di voler eliminare questo utente?")) return;
       const res = await fetch(`/admin/users/delete/${userId}`, { method: 'DELETE' });
@@ -92,16 +100,12 @@
       loadUsers();
     }
 
-    // Logout
     async function logout() {
       await fetch('/logout');
       window.location.href = "/";
     }
 
-    // Avvio
     loadUsers();
   </script>
 </body>
-</html>
-
 </html>

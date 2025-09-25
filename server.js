@@ -70,26 +70,27 @@ const uploadFiles = multer({ storage: storage });
 
 // Registrazione
 app.post('/register', async (req, res) => {
-  const { nome, cognome, codice_fiscale, email, password } = req.body;
+  const { nome, cognome, codice_fiscale, email, password, club_appartenenza } = req.body;
 
-  if (!nome || !cognome || !codice_fiscale || !email || !password) {
+  if (!nome || !cognome || !codice_fiscale || !email || !password || !club_appartenenza) {
     return res.status(400).send("⚠️ Tutti i campi obbligatori devono essere compilati!");
   }
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
     const sql = `
-      INSERT INTO users (nome, cognome, codice_fiscale, email, password, ruolo)
-      VALUES ($1,$2,$3,$4,$5,'user')
+      INSERT INTO users (nome, cognome, codice_fiscale, email, password, ruolo, club_appartenenza)
+      VALUES ($1,$2,$3,$4,$5,'user',$6)
       ON CONFLICT (email) DO NOTHING
     `;
-    await db.query(sql, [nome, cognome, codice_fiscale, email, hashedPassword]);
+    await db.query(sql, [nome, cognome, codice_fiscale, email, hashedPassword, club_appartenenza]);
     res.send("✅ Registrazione completata!");
   } catch (err) {
     console.error("❌ Errore registrazione:", err);
     res.status(500).send("❌ Errore registrazione utente.");
   }
 });
+
 
 // Login
 app.post('/login', async (req, res) => {

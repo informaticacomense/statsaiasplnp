@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Creazione Campi Mancanti - Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+
+  <!-- Navbar -->
+  <nav class="bg-gray-800 text-white p-4 flex justify-between">
+    <h1 class="text-xl font-bold">⚙️ Strumenti Admin</h1>
+    <div>
+      <a href="dashboard.html" class="bg-blue-600 px-3 py-1 rounded hover:bg-blue-800 mr-4">🏠 Dashboard</a>
+      <button onclick="logout()" class="bg-red-500 px-3 py-1 rounded hover:bg-red-700">Logout</button>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="p-6 max-w-xl mx-auto bg-white rounded shadow mt-6">
+    <h2 class="text-2xl font-bold mb-4">🛠️ Creazione Campi Mancanti</h2>
+    <p class="mb-4 text-gray-700">
+      Premi il pulsante qui sotto per creare (se non esistono già) i campi:
+      <b>sede_corso</b>, <b>data_corso</b>, <b>certificato_lnp</b>.
+    </p>
+    <button onclick="creaCampi()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+      ➕ Crea Campi
+    </button>
+    <p id="result" class="mt-4 text-sm"></p>
+  </main>
+
+  <script>
+    async function creaCampi() {
+      const res = await fetch('/admin/create-missing-fields', { method: 'POST' });
+      document.getElementById("result").innerText = await res.text();
+    }
+
+    async function logout() {
+      await fetch('/logout');
+      window.location.href = "/";
+    }
+  </script>
+</body>
+</html>

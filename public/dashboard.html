@@ -20,12 +20,6 @@
     </div>
   </nav>
 
-  <!-- Avviso Club mancante -->
-  <div id="alertClub" class="hidden bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-3 rounded m-6">
-    ⚠️ Ricordati di aggiornare il tuo profilo inserendo il <b>Club di Lavoro</b>.
-    <a href="profile.html" class="underline ml-2">Vai al profilo</a>
-  </div>
-
   <!-- Main -->
   <main class="p-6 max-w-6xl mx-auto">
     <h2 class="text-2xl font-bold mb-4">📅 Crea o gestisci le tue partite</h2>
@@ -81,16 +75,10 @@
       }
       currentUser = await res.json();
       document.getElementById("userName").innerText = currentUser.nome + " " + currentUser.cognome;
-
       if (currentUser.ruolo === "admin") {
         document.getElementById("adminLinkPartite").classList.remove("hidden");
         document.getElementById("adminLinkUtenti").classList.remove("hidden");
       }
-
-      if (!currentUser.club_appartenenza || currentUser.club_appartenenza.trim() === "") {
-        document.getElementById("alertClub").classList.remove("hidden");
-      }
-
       await loadIscrizioniUtente();
       await loadPartite();
     }
@@ -161,32 +149,9 @@
 
         let userSection = "";
         if (iscrizione) {
-          userSection = `
-            <p class="mt-2 text-green-700">✅ Sei iscritto come <b>${iscrizione.ruolo}</b></p>
-            <label class="block text-sm mt-2">✏️ Nota personale:</label>
-            <textarea id="nota_${p.id}" class="border rounded w-full p-2 mb-2">${iscrizione.note || ""}</textarea>
-            <button onclick="salvaNota(${p.id})" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-800">💾 Salva Nota</button>
-            <p class="text-sm text-blue-700 mt-2">📝 Nota Admin: ${p.note_admin || "Nessuna"}</p>
-          `;
+          userSection = `<p class="mt-2 text-green-700">✅ Sei iscritto come <b>${iscrizione.ruolo}</b></p>`;
         } else {
-          userSection = `
-            <form onsubmit="registraUtente(event, ${p.id})" class="mt-2 flex flex-wrap gap-2 items-center">
-              <select name="ruolo" required class="border rounded px-2 py-1">
-                <option value="">Seleziona ruolo</option>
-                <option value="caller">Caller</option>
-                <option value="referee">Referee</option>
-                <option value="table">Table</option>
-              </select>
-              <label>Orario di arrivo:</label>
-              <input type="time" name="orario_arrivo" required class="border rounded px-2 py-1">
-              <button type="submit" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-800">Iscriviti</button>
-            </form>
-          `;
-        }
-
-        let reviewButton = "";
-        if (p.stato === "revisionata" || p.stato === "da_rivedere") {
-          reviewButton = `<button onclick="alert('Mostro review per gara ${p.numero_gara}')" class="mt-2 bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-800">👀 Vedi Review</button>`;
+          userSection = `<p class="mt-2 text-gray-600">Non sei iscritto a questa partita.</p>`;
         }
 
         container.innerHTML += `
@@ -195,39 +160,9 @@
             <p class="text-sm text-gray-600">Gara ${p.numero_gara} | Girone ${p.girone || '-'} | Campo: ${p.campo_gioco || '-'} | Orario: ${p.orario || '-'}</p>
             <p class="mt-1">📌 Stato: <span class="font-semibold">${p.stato}</span></p>
             ${userSection}
-            ${reviewButton}
           </div>
         `;
       });
-    }
-
-    async function registraUtente(e, partitaId) {
-      e.preventDefault();
-      const form = e.target;
-      const data = {
-        partita_id: partitaId,
-        ruolo: form.ruolo.value,
-        orario_arrivo: form.orario_arrivo.value
-      };
-      const res = await fetch('/partite/registrati', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      alert(await res.text());
-      await loadIscrizioniUtente();
-      renderPartite();
-    }
-
-    async function salvaNota(partitaId) {
-      const nota = document.getElementById(`nota_${partitaId}`).value;
-      const res = await fetch('/partite/finegara', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ partita_id: partitaId, note: nota })
-      });
-      alert(await res.text());
-      await loadIscrizioniUtente();
     }
 
     ["filterCampionato", "filterGirone", "filterStato"].forEach(id => {
@@ -243,4 +178,3 @@
   </script>
 </body>
 </html>
-

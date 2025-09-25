@@ -77,6 +77,22 @@
         <input type="number" name="anni_esperienza" id="anni_esperienza" class="border p-2 rounded w-full">
       </label>
 
+      <!-- Nuovi campi -->
+      <label class="col-span-2">Sede Corso
+        <input type="text" name="sede_corso" id="sede_corso" class="border p-2 rounded w-full">
+      </label>
+
+      <label class="col-span-1">Data Corso
+        <input type="date" name="data_corso" id="data_corso" class="border p-2 rounded w-full">
+      </label>
+
+      <label class="col-span-1">Certificato LNP
+        <select name="certificato_lnp" id="certificato_lnp" class="border p-2 rounded w-full">
+          <option value="false">No</option>
+          <option value="true">Sì</option>
+        </select>
+      </label>
+
       <button type="submit" class="col-span-2 bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700">
         💾 Salva Modifiche
       </button>
@@ -101,9 +117,17 @@
         return;
       }
       const user = await res.json();
+
+      // Popola i campi
       Object.keys(user).forEach(k => {
         if (document.getElementById(k)) {
-          document.getElementById(k).value = user[k] || "";
+          if (k === "data_corso" || k === "data_nascita") {
+            document.getElementById(k).value = user[k] ? user[k].split("T")[0] : "";
+          } else if (k === "certificato_lnp") {
+            document.getElementById(k).value = user[k] ? "true" : "false";
+          } else {
+            document.getElementById(k).value = user[k] || "";
+          }
         }
       });
     }
@@ -129,3 +153,4 @@
   </script>
 </body>
 </html>
+

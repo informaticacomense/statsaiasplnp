@@ -1,4 +1,4 @@
-    const express = require('express');
+const express = require('express');
 const bodyParser = require('body-parser');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
@@ -19,7 +19,7 @@ app.use(session({
   secret: 'statsaiasplnp_secret',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false } // se usi HTTPS metti true
+  cookie: { secure: false }
 }));
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -177,7 +177,126 @@ app.post('/update-profile', requireLogin, async (req, res) => {
 // PARTITE & ADMIN //
 /////////////////////
 
-// (rotte partite, iscrizioni, fine gara ecc. già definite in precedenza rimangono invariate)
+// Lista partite
+app.get('/partite', requireLogin, async (req, res) => {
+  try {
+    const result = await db.query("SELECT * FROM partite ORDER BY data_gara ASC");
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Errore caricamento partite:", err);
+    res.status(500).send("Errore caricamento partite.");
+  }
+});
+
+// Creazione partita
+app.post('/partite/crea', requireLogin, async (req, res) => {
+  const { campionato, girone, data_gara, numero_gara, squadra_a, squadra_b, campo_gioco, orario } = req.body;
+
+  if (!campionato || !data_gara || !numero_gara || !squadra_a || !squadra_b) {
+    return res.status(400).send("⚠️ Compila tutti i campi obbligatori.");
+  }
+
+  try {
+    const sql = `
+      INSERT INTO partite (campionato, girone, data_gara, numero_gara, squadra_a, squadra_b, campo_gioco, orario, stato)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'da_giocare')
+    `;
+    await db.query(sql, [
+      campionato,
+      girone || null,
+      data_gara,
+      numero_gara,
+      squadra_a,
+      squadra_b,
+      campo_gioco || null,
+      orario || null
+    ]);
+    res.send("✅ Partita creata con successo!");
+  } catch (err) {
+    console.error("Errore creazione partita:", err);
+    res.status(500).send("❌ Errore creazione partita.");
+  }
+});
+
+// Iscrizione utente
+app.post('/partite/registrati', requireLogin, async (req, res) => {
+  const { partita_id, ruolo, orario_arrivo } = req.body;
+  if (!partita_id || !ruolo || !orario_arrivo) {
+    return res.status(400).send("⚠️ Inserisci tutti i campi.");
+  }
+  try {
+    const sql = `
+      INSERT INTO iscrizioni (user_id, partita_id, ruolo, orario_arrivo) 
+      VALUES ($1,$2,$3,$4)
+      ON CONFLICT (user_id, partita_id) DO UPDATE 
+      SET ruolo = EXCLUDED.ruolo, orario_arrivo = EXCLUDED.orario_arrivo
+    `;
+    await db.query(sql, [req.session.userId, partita_id, ruolo, orario_arrivo]);
+
+    if (ruolo === "caller") {
+      await db.query("UPDATE partite SET stato='in_corso' WHERE id=$1 AND stato='da_giocare'", [partita_id]);
+    }
+    res.send("✅ Iscrizione completata!");
+  } catch (err) {
+    console.error("Errore iscrizione:", err);
+    res.status(500).send("Errore iscrizione.");
+  }
+});
+
+// Fine gara
+app.post('/partite/finegara', requireLogin, uploadFiles.fields([
+  { name: 'file_stat', maxCount: 1 },
+  { name: 'pdf_stat', maxCount: 1 },
+  { name: 'foto_stat', maxCount: 1 }
+]), async (req, res) => {
+  const { partita_id, risultato_finale, note } = req.body;
+  if (!partita_id) return res.status(400).send("⚠️ ID partita mancante.");
+
+  const fileStat = req.files['file_stat'] ? req.files['file_stat'][0].filename : null;
+  const pdfStat  = req.files['pdf_stat'] ? req.files['pdf_stat'][0].filename : null;
+  const fotoStat = req.files['foto_stat'] ? req.files['foto_stat'][0].filename : null;
+
+  try {
+    await db.query(
+      `UPDATE iscrizioni 
+       SET note=$1, file_statistico=$2, pdf_statistiche=$3, foto_statistiche=$4, inviato=TRUE
+       WHERE partita_id=$5 AND user_id=$6`,
+      [note || null, fileStat, pdfStat, fotoStat, partita_id, req.session.userId]
+    );
+
+    const ruoloResult = await db.query(
+      "SELECT ruolo FROM iscrizioni WHERE partita_id=$1 AND user_id=$2",
+      [partita_id, req.session.userId]
+    );
+
+    if (ruoloResult.rows.length && ruoloResult.rows[0].ruolo === 'caller' && risultato_finale) {
+      await db.query("UPDATE partite SET stato='terminata', risultato_finale=$1 WHERE id=$2",
+        [risultato_finale, partita_id]);
+      res.send("✅ Fine gara inviata! Partita terminata.");
+    } else {
+      res.send("✅ File e note caricati!");
+    }
+  } catch (err) {
+    console.error("Errore fine gara:", err);
+    res.status(500).send("❌ Errore fine gara.");
+  }
+});
+
+// Le mie iscrizioni
+app.get('/mie-iscrizioni', requireLogin, async (req, res) => {
+  try {
+    const sql = `
+      SELECT i.partita_id, i.ruolo, i.orario_arrivo, i.note, 
+             i.file_statistico, i.pdf_statistiche, i.foto_statistiche
+      FROM iscrizioni i
+      WHERE i.user_id=$1`;
+    const result = await db.query(sql, [req.session.userId]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Errore query mie-iscrizioni:", err);
+    res.status(500).send("Errore caricamento iscrizioni utente.");
+  }
+});
 
 /////////////////////
 // ADMIN UTENTI    //

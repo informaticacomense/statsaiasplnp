@@ -1,4 +1,4 @@
-const express = require('express');
+    const express = require('express');
 const bodyParser = require('body-parser');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
@@ -177,8 +177,7 @@ app.post('/update-profile', requireLogin, async (req, res) => {
 // PARTITE & ADMIN //
 /////////////////////
 
-// (qui restano le rotte per partite, iscrizioni, fine gara, report, ecc. 
-// che avevi già: non le riscrivo per brevità, ma il codice resta invariato)
+// (rotte partite, iscrizioni, fine gara ecc. già definite in precedenza rimangono invariate)
 
 /////////////////////
 // ADMIN UTENTI    //
@@ -188,10 +187,8 @@ app.post('/update-profile', requireLogin, async (req, res) => {
 app.get('/admin/users', requireAdmin, async (req, res) => {
   try {
     const sql = `
-      SELECT id, nome, cognome, email, codice_fiscale, ruolo,
-             data_nascita, luogo_nascita, indirizzo_residenza,
-             paese, cap, provincia, club_appartenenza, anni_esperienza,
-             sede_corso, data_corso, certificato_lnp
+      SELECT id, nome, cognome, email, ruolo,
+             club_appartenenza, sede_corso, data_corso, certificato_lnp
       FROM users
       ORDER BY cognome, nome
     `;
@@ -233,10 +230,9 @@ app.get('/admin/users/:id', requireAdmin, async (req, res) => {
   const userId = req.params.id;
   try {
     const sql = `
-      SELECT id, nome, cognome, email, codice_fiscale, ruolo,
-             data_nascita, luogo_nascita, indirizzo_residenza,
-             paese, cap, provincia, club_appartenenza, anni_esperienza,
-             sede_corso, data_corso, certificato_lnp
+      SELECT id, nome, cognome, email, ruolo,
+             club_appartenenza, sede_corso, data_corso, certificato_lnp,
+             data_nascita, luogo_nascita, indirizzo_residenza, paese, cap, provincia, anni_esperienza
       FROM users WHERE id=$1
     `;
     const result = await db.query(sql, [userId]);
@@ -251,10 +247,9 @@ app.get('/admin/users/:id', requireAdmin, async (req, res) => {
 // Aggiorna dati utente (admin)
 app.post('/admin/users/update', requireAdmin, async (req, res) => {
   const {
-    id, nome, cognome, email, codice_fiscale, ruolo,
-    data_nascita, luogo_nascita, indirizzo_residenza,
-    paese, cap, provincia, club_appartenenza, anni_esperienza,
-    sede_corso, data_corso, certificato_lnp
+    id, nome, cognome, email, ruolo,
+    club_appartenenza, sede_corso, data_corso, certificato_lnp,
+    data_nascita, luogo_nascita, indirizzo_residenza, paese, cap, provincia, anni_esperienza
   } = req.body;
 
   if (!id) return res.status(400).send("⚠️ ID utente mancante.");
@@ -262,24 +257,41 @@ app.post('/admin/users/update', requireAdmin, async (req, res) => {
   try {
     const sql = `
       UPDATE users SET
-        nome=$1, cognome=$2, email=$3, codice_fiscale=$4, ruolo=$5,
-        data_nascita=$6, luogo_nascita=$7, indirizzo_residenza=$8,
-        paese=$9, cap=$10, provincia=$11, club_appartenenza=$12, anni_esperienza=$13,
-        sede_corso=$14, data_corso=$15, certificato_lnp=$16
-      WHERE id=$17
+        nome=$1, cognome=$2, email=$3, ruolo=$4,
+        club_appartenenza=$5, sede_corso=$6, data_corso=$7, certificato_lnp=$8,
+        data_nascita=$9, luogo_nascita=$10, indirizzo_residenza=$11, paese=$12, cap=$13, provincia=$14, anni_esperienza=$15
+      WHERE id=$16
     `;
     await db.query(sql, [
-      nome, cognome, email, codice_fiscale, ruolo,
-      data_nascita || null, luogo_nascita || null, indirizzo_residenza || null,
-      paese || null, cap || null, provincia || null,
-      club_appartenenza || null, anni_esperienza || null,
-      sede_corso || null, data_corso || null, certificato_lnp === "true",
+      nome, cognome, email, ruolo,
+      club_appartenenza || null, sede_corso || null, data_corso || null, certificato_lnp === "true",
+      data_nascita || null, luogo_nascita || null, indirizzo_residenza || null, paese || null, cap || null, provincia || null, anni_esperienza || null,
       id
     ]);
     res.send("✅ Profilo utente aggiornato!");
   } catch (err) {
     console.error("Errore update utente (admin):", err);
     res.status(500).send("❌ Errore aggiornamento utente.");
+  }
+});
+
+// Admin: partite a cui un utente è iscritto
+app.get('/admin/users/:id/partite', requireAdmin, async (req, res) => {
+  const userId = req.params.id;
+  try {
+    const sql = `
+      SELECT p.id, p.campionato, p.numero_gara, p.squadra_a, p.squadra_b, p.data_gara,
+             i.ruolo
+      FROM iscrizioni i
+      INNER JOIN partite p ON i.partita_id = p.id
+      WHERE i.user_id = $1
+      ORDER BY p.data_gara DESC
+    `;
+    const result = await db.query(sql, [userId]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Errore caricamento partite utente:", err);
+    res.status(500).send("❌ Errore caricamento partite utente.");
   }
 });
 
@@ -295,32 +307,6 @@ app.post('/admin/create-missing-fields', requireAdmin, async (req, res) => {
     res.status(500).send("❌ Errore creazione campi.");
   }
 });
-
-// Admin: elenco utenti per stampa
-app.get('/admin/users/print', requireAdmin, async (req, res) => {
-  const { filter } = req.query; // "all", "certificati", "non_certificati"
-  try {
-    let sql = `
-      SELECT nome, cognome, club_appartenenza, certificato_lnp
-      FROM users
-      ORDER BY cognome, nome
-    `;
-
-    let result = await db.query(sql);
-
-    if (filter === "certificati") {
-      result.rows = result.rows.filter(u => u.certificato_lnp);
-    } else if (filter === "non_certificati") {
-      result.rows = result.rows.filter(u => !u.certificato_lnp);
-    }
-
-    res.json(result.rows);
-  } catch (err) {
-    console.error("Errore caricamento utenti stampa:", err);
-    res.status(500).send("❌ Errore caricamento elenco utenti.");
-  }
-});
-
 
 /////////////////////
 // AVVIO           //

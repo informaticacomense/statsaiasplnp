@@ -2,111 +2,193 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Gestione Utenti - Admin</title>
+  <title>Dashboard Utente - StatsAIASPLnp</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100">
 
   <!-- Navbar -->
-  <nav class="bg-gray-800 text-white p-4 flex justify-between">
-    <h1 class="text-xl font-bold">👥 Gestione Utenti - StatsAIASPLnp</h1>
-    <div class="flex gap-2">
-      <a href="admin.html" class="bg-blue-600 px-3 py-1 rounded hover:bg-blue-800">⚙️ Gestione Partite</a>
-      <a href="crea_campi.html" class="bg-yellow-600 px-3 py-1 rounded hover:bg-yellow-800">🛠️ Crea Campi</a>
-      <a href="stampa_utenti.html" class="bg-green-600 px-3 py-1 rounded hover:bg-green-800">🖨️ Stampa Utenti</a>
+  <nav class="bg-green-600 text-white p-4 flex justify-between">
+    <h1 class="text-xl font-bold">🏀 StatsAIASPLnp - Area Riservata</h1>
+    <div>
+      <span id="userName" class="mr-4"></span>
+      <a href="profile.html" class="mr-4 underline">Profilo</a>
+      <!-- Link admin visibili solo se ruolo=admin -->
+      <a href="admin.html" id="adminLinkPartite" class="mr-4 underline hidden">⚙️ Gestione Partite</a>
+      <a href="utenti.html" id="adminLinkUtenti" class="mr-4 underline hidden">👥 Gestione Utenti</a>
       <button onclick="logout()" class="bg-red-500 px-3 py-1 rounded hover:bg-red-700">Logout</button>
     </div>
   </nav>
 
-  <!-- Main -->
-  <main class="p-6 max-w-7xl mx-auto">
-    <h2 class="text-2xl font-bold mb-4">📋 Elenco Utenti</h2>
+  <!-- Avviso Club mancante -->
+  <div id="alertClub" class="hidden bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-3 rounded m-6">
+    ⚠️ Ricordati di aggiornare il tuo profilo inserendo il <b>Club di Lavoro</b>.
+    <a href="profile.html" class="underline ml-2">Vai al profilo</a>
+  </div>
 
-    <div class="overflow-x-auto">
-      <table class="min-w-full bg-white shadow rounded-lg overflow-hidden text-sm">
-        <thead class="bg-green-600 text-white">
-          <tr>
-            <th class="px-4 py-2 text-left">Nome</th>
-            <th class="px-4 py-2 text-left">Email</th>
-            <th class="px-4 py-2 text-left">Ruolo</th>
-            <th class="px-4 py-2 text-left">Codice Fiscale</th>
-            <th class="px-4 py-2 text-left">Club</th>
-            <th class="px-4 py-2 text-left">Sede Corso</th>
-            <th class="px-4 py-2 text-left">Data Corso</th>
-            <th class="px-4 py-2 text-left">Certificazione</th>
-            <th class="px-4 py-2 text-left">Azioni</th>
-          </tr>
-        </thead>
-        <tbody id="usersTable" class="divide-y divide-gray-200"></tbody>
-      </table>
+  <!-- Main -->
+  <main class="p-6 max-w-6xl mx-auto">
+    <h2 class="text-2xl font-bold mb-4">📅 Crea o gestisci le tue partite</h2>
+
+    <!-- Form creazione partita -->
+    <div class="bg-white p-4 rounded shadow mb-6">
+      <h3 class="text-lg font-bold mb-3">➕ Crea nuova partita</h3>
+      <form id="createPartitaForm" class="grid grid-cols-2 gap-4">
+        <input type="text" name="campionato" placeholder="Campionato *" class="border p-2 rounded col-span-2" required>
+        <input type="text" name="girone" placeholder="Girone" class="border p-2 rounded">
+        <input type="date" name="data_gara" class="border p-2 rounded" required>
+        <input type="text" name="numero_gara" placeholder="Numero gara *" class="border p-2 rounded" required>
+        <input type="text" name="squadra_a" placeholder="Squadra A *" class="border p-2 rounded" required>
+        <input type="text" name="squadra_b" placeholder="Squadra B *" class="border p-2 rounded" required>
+        <input type="text" name="campo_gioco" placeholder="Campo di gioco" class="border p-2 rounded">
+        <input type="time" name="orario" class="border p-2 rounded">
+        <button type="submit" class="col-span-2 bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700">Crea Partita</button>
+      </form>
     </div>
+
+    <!-- Filtri -->
+    <div class="flex gap-4 mb-6 flex-wrap">
+      <select id="filterCampionato" class="border p-2 rounded">
+        <option value="">Tutti i Campionati</option>
+      </select>
+      <select id="filterGirone" class="border p-2 rounded">
+        <option value="">Tutti i Gironi</option>
+      </select>
+      <select id="filterStato" class="border p-2 rounded">
+        <option value="">Tutti gli Stati</option>
+        <option value="da_giocare">Da giocare</option>
+        <option value="in_corso">In corso</option>
+        <option value="terminata">Terminate</option>
+        <option value="revisionata">Revisionate</option>
+        <option value="da_rivedere">Da rivedere</option>
+      </select>
+    </div>
+
+    <div id="partiteContainer" class="space-y-6"></div>
   </main>
 
   <!-- Script -->
   <script>
-    async function loadUsers() {
-      const res = await fetch('/admin/users');
+    let currentUser = null;
+    let iscrizioniUtente = [];
+    let allPartite = [];
+
+    async function loadUser() {
+      const res = await fetch('/me');
       if (!res.ok) {
-        document.getElementById("usersTable").innerHTML =
-          "<tr><td colspan='9' class='p-4 text-red-600'>Errore caricamento utenti</td></tr>";
+        window.location.href = "/";
         return;
       }
-      const users = await res.json();
-      const tbody = document.getElementById("usersTable");
-      tbody.innerHTML = "";
+      currentUser = await res.json();
+      document.getElementById("userName").innerText = currentUser.nome + " " + currentUser.cognome;
 
-      users.forEach(u => {
-        tbody.innerHTML += `
-          <tr>
-            <td class="px-4 py-2">${u.nome} ${u.cognome}</td>
-            <td class="px-4 py-2">${u.email}</td>
-            <td class="px-4 py-2">
-              <select onchange="aggiornaRuolo(${u.id}, this.value)" class="border rounded px-2 py-1">
-                <option value="user" ${u.ruolo==='user'?'selected':''}>User</option>
-                <option value="admin" ${u.ruolo==='admin'?'selected':''}>Admin</option>
-              </select>
-            </td>
-            <td class="px-4 py-2">${u.codice_fiscale || "-"}</td>
-            <td class="px-4 py-2">${u.club_appartenenza || "-"}</td>
-            <td class="px-4 py-2">${u.sede_corso || "-"}</td>
-            <td class="px-4 py-2">${u.data_corso ? new Date(u.data_corso).toLocaleDateString() : "-"}</td>
-            <td class="px-4 py-2">
-              ${u.certificato_lnp 
-                ? '<span class="bg-green-600 text-white text-xs px-2 py-1 rounded">✅ LNP</span>' 
-                : '<span class="bg-gray-400 text-white text-xs px-2 py-1 rounded">No</span>'}
-            </td>
-            <td class="px-4 py-2 flex gap-2">
-              <a href="utente_dettaglio.html?id=${u.id}" class="bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-800">✏️ Modifica</a>
-              <button onclick="eliminaUtente(${u.id})" class="bg-red-600 text-white px-2 py-1 rounded hover:bg-red-800">🗑️ Elimina</button>
-            </td>
-          </tr>
+      // Mostra link admin se ruolo=admin
+      if (currentUser.ruolo === "admin") {
+        document.getElementById("adminLinkPartite").classList.remove("hidden");
+        document.getElementById("adminLinkUtenti").classList.remove("hidden");
+      }
+
+      // Mostra avviso se manca club_appartenenza
+      if (!currentUser.club_appartenenza || currentUser.club_appartenenza.trim() === "") {
+        document.getElementById("alertClub").classList.remove("hidden");
+      }
+
+      await loadIscrizioniUtente();
+      await loadPartite();
+    }
+
+    async function loadIscrizioniUtente() {
+      const res = await fetch('/mie-iscrizioni');
+      if (!res.ok) return;
+      iscrizioniUtente = await res.json();
+    }
+
+    async function loadPartite() {
+      const res = await fetch('/partite');
+      allPartite = await res.json();
+      populateFilters();
+      renderPartite();
+    }
+
+    // --- Creazione partita ---
+    document.getElementById("createPartitaForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(e.target).entries());
+      const res = await fetch('/partite/crea', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      alert(await res.text());
+      e.target.reset();
+      loadPartite();
+    });
+
+    function populateFilters() {
+      const campionati = [...new Set(allPartite.map(p => p.campionato).filter(Boolean))];
+      const gironi = [...new Set(allPartite.map(p => p.girone).filter(Boolean))];
+
+      const campSel = document.getElementById("filterCampionato");
+      const girSel = document.getElementById("filterGirone");
+
+      campSel.innerHTML = `<option value="">Tutti i Campionati</option>`;
+      girSel.innerHTML = `<option value="">Tutti i Gironi</option>`;
+
+      campionati.forEach(c => campSel.innerHTML += `<option value="${c}">${c}</option>`);
+      gironi.forEach(g => girSel.innerHTML += `<option value="${g}">${g}</option>`);
+    }
+
+    function renderPartite() {
+      const camp = document.getElementById("filterCampionato").value;
+      const gir = document.getElementById("filterGirone").value;
+      const stato = document.getElementById("filterStato").value;
+
+      const container = document.getElementById("partiteContainer");
+      container.innerHTML = "";
+
+      let filtered = allPartite.filter(p => {
+        if (camp && p.campionato !== camp) return false;
+        if (gir && p.girone !== gir) return false;
+        if (stato && p.stato !== stato) return false;
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = "<p class='text-gray-500'>Nessuna partita trovata.</p>";
+        return;
+      }
+
+      filtered.forEach(p => {
+        const iscrizione = iscrizioniUtente.find(i => i.partita_id === p.id);
+
+        let userSection = "";
+        if (iscrizione) {
+          userSection = `<p class="mt-2 text-green-700">✅ Sei iscritto come <b>${iscrizione.ruolo}</b></p>`;
+        } else {
+          userSection = `<p class="mt-2 text-gray-600">Non sei iscritto a questa partita.</p>`;
+        }
+
+        container.innerHTML += `
+          <div class="bg-white p-4 rounded shadow">
+            <h3 class="text-lg font-bold">${p.campionato} - ${p.squadra_a} vs ${p.squadra_b}</h3>
+            <p class="text-sm text-gray-600">Gara ${p.numero_gara} | Girone ${p.girone || '-'} | Campo: ${p.campo_gioco || '-'} | Orario: ${p.orario || '-'}</p>
+            <p class="mt-1">📌 Stato: <span class="font-semibold">${p.stato}</span></p>
+            ${userSection}
+          </div>
         `;
       });
     }
 
-    async function aggiornaRuolo(userId, ruolo) {
-      const res = await fetch('/admin/users/update-role', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, ruolo })
-      });
-      alert(await res.text());
-      loadUsers();
-    }
-
-    async function eliminaUtente(userId) {
-      if (!confirm("Sei sicuro di voler eliminare questo utente?")) return;
-      const res = await fetch(`/admin/users/delete/${userId}`, { method: 'DELETE' });
-      alert(await res.text());
-      loadUsers();
-    }
+    ["filterCampionato", "filterGirone", "filterStato"].forEach(id => {
+      document.getElementById(id).addEventListener("change", renderPartite);
+    });
 
     async function logout() {
       await fetch('/logout');
-      window.location.href = "/";
+      window.location.href = '/';
     }
 
-    loadUsers();
+    loadUser();
   </script>
 </body>
 </html>

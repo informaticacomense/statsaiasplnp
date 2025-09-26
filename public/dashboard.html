@@ -2,264 +2,251 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard Utente - StatsAIASPLnp</title>
+  <title>Gestione Partite - Admin</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100">
 
-  <nav class="bg-green-600 text-white p-4 flex justify-between">
-    <h1 class="text-xl font-bold">🏀 StatsAIASPLnp - Area Riservata</h1>
+  <!-- NAVBAR -->
+  <nav class="bg-gray-800 text-white p-4 flex justify-between">
+    <h1 class="text-xl font-bold">⚙️ Pannello Admin - StatsAIASPLnp</h1>
     <div>
-      <span id="userName" class="mr-4"></span>
-      <a href="profile.html" class="mr-4 underline">Profilo</a>
-      <a href="admin.html" id="adminLink" class="mr-4 underline hidden">Gestione Partite</a>
+      <button onclick="cancellaTutto()" class="bg-red-600 px-3 py-1 rounded hover:bg-red-800 mr-4">🗑️ Cancella tutto</button>
+      <a href="report.html" class="bg-blue-600 px-3 py-1 rounded hover:bg-blue-800 mr-4">📊 Report Partite</a>
       <button onclick="logout()" class="bg-red-500 px-3 py-1 rounded hover:bg-red-700">Logout</button>
     </div>
   </nav>
 
-  <main class="p-6 max-w-6xl mx-auto">
-    <h2 class="text-2xl font-bold mb-4">📅Puoi filtrare le partite qua sotto (gli orari potrebbero essere differenti). Se non trovi la tua gara, creala qua.</h2>
-
-    <!-- Form creazione partita -->
-    <div class="bg-white p-4 rounded shadow mb-6">
-      <h3 class="text-lg font-bold mb-3">➕ Crea nuova partita</h3>
-      <form id="createPartitaForm" class="grid grid-cols-2 gap-4">
-        <input type="text" name="campionato" placeholder="Campionato *" class="border p-2 rounded col-span-2" required>
-        <input type="text" name="girone" placeholder="Girone" class="border p-2 rounded">
-        <input type="date" name="data_gara" class="border p-2 rounded" required>
-        <input type="text" name="numero_gara" placeholder="Numero gara *" class="border p-2 rounded" required>
-        <input type="text" name="squadra_a" placeholder="Squadra A *" class="border p-2 rounded" required>
-        <input type="text" name="squadra_b" placeholder="Squadra B *" class="border p-2 rounded" required>
-        <input type="text" name="campo_gioco" placeholder="Campo di gioco" class="border p-2 rounded">
-        <input type="time" name="orario" class="border p-2 rounded">
-        <button type="submit" class="col-span-2 bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700">Crea Partita</button>
-      </form>
+  <!-- FILTRI -->
+  <div class="p-6 max-w-6xl mx-auto">
+    <h2 class="text-2xl font-bold mb-4">📂 Filtra Partite</h2>
+    <div class="flex flex-wrap items-center gap-4 mb-6">
+      <select id="campionatoSelect" class="border p-2 rounded">
+        <option value="">-- scegli campionato --</option>
+        <option value="A2">Serie A2</option>
+        <option value="Serie B">Serie B</option>
+        <option value="Serie C">Serie C</option>
+      </select>
+      <input type="text" id="gironeInput" placeholder="Girone (es. A, B, UNICO)" class="border p-2 rounded w-40">
+      <input type="date" id="dataInput" class="border p-2 rounded">
+      <select id="revisionFilter" class="border p-2 rounded">
+        <option value="">-- tutte --</option>
+        <option value="revisionata">Solo revisionate</option>
+        <option value="non_revisionate">Solo non revisionate</option>
+      </select>
+      <button onclick="filtraPartite()" class="bg-blue-600 text-white px-4 py-2 rounded">🔍 Filtra</button>
     </div>
 
-    <!-- Filtri -->
-    <div class="flex gap-4 mb-6 flex-wrap">
-      <select id="filterCampionato" class="border p-2 rounded">
-        <option value="">Tutti i Campionati</option>
-      </select>
-      <select id="filterGirone" class="border p-2 rounded">
-        <option value="">Tutti i Gironi</option>
-      </select>
-      <select id="filterStato" class="border p-2 rounded">
-        <option value="">Tutti gli Stati</option>
-        <option value="da_giocare">Da giocare</option>
-        <option value="in_corso">In corso</option>
-        <option value="terminata">Terminate</option>
-        <option value="revisionata">Revisionate</option>
-        <option value="da_rivedere">Da rivedere</option>
-      </select>
+    <!-- UPLOAD CSV -->
+    <h2 class="text-xl font-bold mb-2">📂 Carica Partite da CSV</h2>
+    <form id="csvForm" class="mb-6 border p-4 bg-white rounded shadow" enctype="multipart/form-data">
+      <input type="file" name="partite_csv" accept=".csv" class="mb-2">
+      <button type="submit" class="bg-blue-600 text-white px-3 py-1 rounded">Carica CSV</button>
+    </form>
+
+    <!-- ELENCO PARTITE -->
+    <h2 class="text-2xl font-bold mb-4">📋 Elenco Partite e Iscritti</h2>
+    <div id="partiteContainer" class="space-y-8">
+      <p class="text-gray-600">⚠️ Seleziona un campionato per visualizzare le partite.</p>
     </div>
+  </div>
 
-    <div id="partiteContainer" class="space-y-6"></div>
-  </main>
-
+  <!-- SCRIPT -->
   <script>
-    let currentUser = null;
-    let iscrizioniUtente = [];
-    let allPartite = [];
+    async function loadPartite(campionato = "", girone = "", data = "", revisionFilter = "") {
+      let url = "/report-partite";
+      const params = [];
+      if (campionato) params.push(`campionato=${encodeURIComponent(campionato)}`);
+      if (girone) params.push(`girone=${encodeURIComponent(girone)}`);
+      if (data) params.push(`data=${encodeURIComponent(data)}`);
+      if (revisionFilter) params.push(`revision=${encodeURIComponent(revisionFilter)}`);
+      if (params.length > 0) url += "?" + params.join("&");
 
-    async function loadUser() {
-      const res = await fetch('/me');
+      const res = await fetch(url);
       if (!res.ok) {
-        window.location.href = "/";
+        document.getElementById("partiteContainer").innerHTML =
+          "<p class='text-red-600'>Errore nel caricamento partite.</p>";
         return;
       }
-      currentUser = await res.json();
-      document.getElementById("userName").innerText = currentUser.nome + " " + currentUser.cognome;
-      if (currentUser.ruolo === "admin") {
-        document.getElementById("adminLink").classList.remove("hidden");
+
+      const dati = await res.json();
+      renderPartite(dati, revisionFilter, data);
+    }
+
+    function filtraPartite() {
+      const campionato = document.getElementById("campionatoSelect").value;
+      const girone = document.getElementById("gironeInput").value;
+      const data = document.getElementById("dataInput").value;
+      const revisionFilter = document.getElementById("revisionFilter").value;
+
+      if (!campionato) {
+        document.getElementById("partiteContainer").innerHTML =
+          "<p class='text-gray-600'>⚠️ Seleziona almeno un campionato.</p>";
+        return;
       }
-      await loadIscrizioniUtente();
-      await loadPartite();
+      loadPartite(campionato, girone, data, revisionFilter);
     }
 
-    async function loadIscrizioniUtente() {
-      const res = await fetch('/mie-iscrizioni');
-      if (!res.ok) return;
-      iscrizioniUtente = await res.json();
-    }
-
-    async function loadPartite() {
-      const res = await fetch('/partite');
-      allPartite = await res.json();
-      populateFilters();
-      renderPartite();
-    }
-
-    // --- Creazione partita ---
-    document.getElementById("createPartitaForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const data = Object.fromEntries(new FormData(e.target).entries());
-      const res = await fetch('/partite/crea', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      alert(await res.text());
-      e.target.reset();
-      loadPartite();
-    });
-
-    function populateFilters() {
-      const campionati = [...new Set(allPartite.map(p => p.campionato).filter(Boolean))];
-      const gironi = [...new Set(allPartite.map(p => p.girone).filter(Boolean))];
-
-      const campSel = document.getElementById("filterCampionato");
-      const girSel = document.getElementById("filterGirone");
-
-      campSel.innerHTML = `<option value="">Tutti i Campionati</option>`;
-      girSel.innerHTML = `<option value="">Tutti i Gironi</option>`;
-
-      campionati.forEach(c => campSel.innerHTML += `<option value="${c}">${c}</option>`);
-      gironi.forEach(g => girSel.innerHTML += `<option value="${g}">${g}</option>`);
-    }
-
-    function renderPartite() {
-      const camp = document.getElementById("filterCampionato").value;
-      const gir = document.getElementById("filterGirone").value;
-      const stato = document.getElementById("filterStato").value;
-
+    function renderPartite(dati, revisionFilter, dataFilter) {
       const container = document.getElementById("partiteContainer");
       container.innerHTML = "";
 
-      let filtered = allPartite.filter(p => {
-        if (camp && p.campionato !== camp) return false;
-        if (gir && p.girone !== gir) return false;
-        if (stato && p.stato !== stato) return false;
-        return true;
-      });
-
-      if (filtered.length === 0) {
-        container.innerHTML = "<p class='text-gray-500'>Nessuna partita trovata.</p>";
+      if (!dati || dati.length === 0) {
+        container.innerHTML = "<p class='text-gray-600'>Nessuna partita trovata.</p>";
         return;
       }
 
-      filtered.forEach(p => {
-        const iscrizione = iscrizioniUtente.find(i => i.partita_id === p.id);
+      // Filtri lato client (in caso il backend non li gestisca)
+      let filtrati = dati;
+      if (revisionFilter === "revisionata") {
+        filtrati = filtrati.filter(p => p.stato === "revisionata");
+      } else if (revisionFilter === "non_revisionate") {
+        filtrati = filtrati.filter(p => p.stato !== "revisionata");
+      }
+      if (dataFilter) {
+        filtrati = filtrati.filter(p => p.data_gara >= dataFilter);
+      }
 
-        let userSection = "";
-        if (iscrizione) {
-          let finegaraForm = `
-            <button onclick="toggleFineGaraForm(${p.id})" class="bg-purple-600 text-white px-3 py-1 rounded mt-2 hover:bg-purple-700">
-              📄 Fine Gara
-            </button>
-            <form id="finegara-${p.id}" class="hidden mt-3 border p-3 rounded bg-gray-50" enctype="multipart/form-data">
-              <input type="hidden" name="partita_id" value="${p.id}">
-          `;
+      if (filtrati.length === 0) {
+        container.innerHTML = "<p class='text-gray-600'>Nessuna partita corrisponde ai filtri scelti.</p>";
+        return;
+      }
 
-          if (iscrizione.ruolo === "caller") {
-            finegaraForm += `
-              <label class="block text-sm mb-1">🏆 Punteggio finale</label>
-              <input type="text" name="risultato_finale" placeholder="Es: 75-68" class="border p-2 rounded w-full mb-2">
-            `;
-          } else {
-            finegaraForm += `<p class="text-sm text-gray-600 mb-2">⚠️ Solo il <b>Caller</b> può inserire il risultato finale.</p>`;
-          }
+      const grouped = {};
+      filtrati.forEach(r => {
+        if (!grouped[r.partita_id]) grouped[r.partita_id] = { info: r, iscritti: [] };
+        if (r.user_id) grouped[r.partita_id].iscritti.push(r);
+      });
 
-          finegaraForm += `
-              <label class="block text-sm mb-1">📝 Note</label>
-              <textarea name="note" class="border p-2 rounded w-full mb-2"></textarea>
+      Object.values(grouped).forEach(gruppo => {
+        const p = gruppo.info;
 
-              <label class="block text-sm mb-1">📑 Carica File FIBA LIVE STATS</label>
-              <input type="file" name="file_stat" class="mb-2">
-
-              <label class="block text-sm mb-1">📊 PDF statistiche</label>
-              <input type="file" name="pdf_stat" accept=".pdf" class="mb-2">
-
-              <button type="submit" class="bg-green-600 text-white px-3 py-1 rounded">Salva</button>
-            </form>
-          `;
-
-          if (p.note_admin) {
-            finegaraForm += `
-              <div class="mt-3 p-2 bg-yellow-100 border border-yellow-400 rounded">
-                <p class="text-sm"><b>📝 Nota di revisione Admin:</b></p>
-                <p class="text-sm">${p.note_admin}</p>
-              </div>
-            `;
-          }
-
-          userSection = `
-            <p class="mt-2 text-green-700">✅ Sei iscritto come <b>${iscrizione.ruolo}</b> (arrivo: ${iscrizione.orario_arrivo || '-'})</p>
-            ${finegaraForm}
-          `;
+        // Tabella iscritti
+        let iscrittiHTML = "";
+        if (gruppo.iscritti.length === 0) {
+          iscrittiHTML = "<p class='text-gray-500'>Nessun iscritto</p>";
         } else {
-          userSection = `
-            <button onclick="toggleIscrizioneForm(${p.id})" class="bg-blue-600 text-white px-3 py-1 rounded mt-2 hover:bg-blue-700">
-              ➕ Registrati
-            </button>
-            <form id="iscrizione-${p.id}" class="hidden mt-3 border p-3 rounded bg-gray-50">
-              <label class="block text-sm mb-1">Ruolo</label>
-              <select id="ruolo-${p.id}" class="border p-2 rounded w-full mb-2">
-                <option value="caller">Caller</option>
-                <option value="statistician">Statistician</option>
-                <option value="standby">Standby</option>
-              </select>
-              <label class="block text-sm mb-1">Orario di arrivo</label>
-              <input type="time" id="orario-${p.id}" class="border p-2 rounded w-full mb-2">
-              <button onclick="confermaIscrizione(event, ${p.id})" class="bg-green-600 text-white px-3 py-1 rounded">Conferma iscrizione</button>
-            </form>
+          iscrittiHTML = `
+            <table class="w-full border mt-2 text-sm">
+              <thead class="bg-gray-200">
+                <tr>
+                  <th class="p-2">Nome</th>
+                  <th class="p-2">Email</th>
+                  <th class="p-2">Ruolo</th>
+                  <th class="p-2">Orario arrivo</th>
+                  <th class="p-2">Note</th>
+                  <th class="p-2">File</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${gruppo.iscritti.map(i => `
+                  <tr class="border-b">
+                    <td class="p-2">${i.nome} ${i.cognome}</td>
+                    <td class="p-2">${i.email}</td>
+                    <td class="p-2">
+                      <select onchange="aggiornaRuolo(${i.id}, this.value)" class="border rounded px-1 py-0.5">
+                        <option value="caller" ${i.ruolo==='caller'?'selected':''}>Caller</option>
+                        <option value="statistician" ${i.ruolo==='statistician'?'selected':''}>Statistician</option>
+                        <option value="standby" ${i.ruolo==='standby'?'selected':''}>Standby</option>
+                      </select>
+                    </td>
+                    <td class="p-2">${i.orario_arrivo || "-"}</td>
+                    <td class="p-2">${i.note || "-"}</td>
+                    <td class="p-2">
+                      ${i.file_statistico ? `<a href="/uploads/${i.file_statistico}" target="_blank" class="text-blue-600 underline block">📑 File FIBA Live Stats</a>` : ""}
+                      ${i.pdf_statistiche ? `<a href="/uploads/${i.pdf_statistiche}" target="_blank" class="text-blue-600 underline block">📊 PDF Statistiche</a>` : ""}
+                      ${i.foto_statistiche ? `<a href="/uploads/${i.foto_statistiche}" target="_blank" class="text-blue-600 underline block">📷 Foto Referto</a>` : ""}
+                    </td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
           `;
         }
 
+        // Card partita
         container.innerHTML += `
           <div class="bg-white p-4 rounded shadow">
             <h3 class="text-lg font-bold">${p.campionato} - ${p.squadra_a} vs ${p.squadra_b}</h3>
             <p class="text-sm text-gray-600">
-              Gara ${p.numero_gara} | Girone ${p.girone || '-'} | Campo: ${p.campo_gioco || '-'} | Orario: ${p.orario || '-'}
+              📅 ${p.data_gara || '-'} | Gara ${p.numero_gara} | Girone ${p.girone || '-'}
             </p>
-            <p class="mt-1">📌 Stato: <span class="font-semibold">${p.stato}</span> ${p.risultato_finale ? `| 🏆 Risultato: ${p.risultato_finale}` : ""}</p>
-            ${userSection}
+            <p class="text-sm text-gray-600">
+              Campo: ${p.campo_gioco || '-'} | Orario: ${p.orario || '-'}
+            </p>
+            <p class="mt-1">📌 Stato: <span class="font-semibold">${p.stato}</span>
+              ${p.risultato_finale ? `| 🏆 Risultato: ${p.risultato_finale}` : ""}
+            </p>
+
+            <div class="mt-2">
+              <label class="block text-sm">📝 Note admin (visibili agli utenti):</label>
+              <textarea id="noteAdmin-${p.partita_id}" class="border p-2 rounded w-full mb-2">${p.note_admin || ""}</textarea>
+
+              <label class="block text-sm">📌 Stato partita:</label>
+              <select id="stato-${p.partita_id}" class="border p-2 rounded mb-2">
+                <option value="da_giocare" ${p.stato==="da_giocare"?"selected":""}>Da giocare</option>
+                <option value="in_corso" ${p.stato==="in_corso"?"selected":""}>In corso</option>
+                <option value="terminata" ${p.stato==="terminata"?"selected":""}>Terminata</option>
+                <option value="revisionata" ${p.stato==="revisionata"?"selected":""}>Revisionata</option>
+                <option value="da_rivedere" ${p.stato==="da_rivedere"?"selected":""}>Da rivedere</option>
+              </select>
+
+              <button onclick="aggiornaStato(${p.partita_id})" class="bg-green-600 text-white px-3 py-1 rounded">Salva</button>
+            </div>
+
+            <h4 class="mt-4 font-semibold">👥 Iscritti</h4>
+            ${iscrittiHTML}
           </div>
         `;
       });
     }
 
-    function toggleIscrizioneForm(partitaId) {
-      document.getElementById(`iscrizione-${partitaId}`).classList.toggle("hidden");
-    }
-
-    async function confermaIscrizione(e, partitaId) {
-      e.preventDefault();
-      const ruolo = document.getElementById(`ruolo-${partitaId}`).value;
-      const orario = document.getElementById(`orario-${partitaId}`).value;
-      const res = await fetch('/partite/registrati', {
+    async function aggiornaStato(partitaId) {
+      const stato = document.getElementById(`stato-${partitaId}`).value;
+      const note_admin = document.getElementById(`noteAdmin-${partitaId}`).value;
+      const res = await fetch('/partite/stato', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ partita_id: partitaId, ruolo, orario_arrivo: orario })
+        body: JSON.stringify({ partita_id: partitaId, stato, note_admin })
       });
       alert(await res.text());
-      loadUser();
+      filtraPartite();
     }
 
-    function toggleFineGaraForm(partitaId) {
-      document.getElementById(`finegara-${partitaId}`).classList.toggle("hidden");
+    async function aggiornaRuolo(iscrizioneId, ruolo) {
+      const res = await fetch('/iscrizioni/ruolo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ iscrizione_id: iscrizioneId, ruolo })
+      });
+      alert(await res.text());
+      filtraPartite();
     }
 
-    document.addEventListener("submit", async (e) => {
-      if (e.target.id.startsWith("finegara-")) {
-        e.preventDefault();
-        const formData = new FormData(e.target);
-        const res = await fetch('/partite/finegara', { method: 'POST', body: formData });
-        alert(await res.text());
-        loadUser();
-      }
-    });
-
-    ["filterCampionato", "filterGirone", "filterStato"].forEach(id => {
-      document.getElementById(id).addEventListener("change", renderPartite);
-    });
+    async function cancellaTutto() {
+      if (!confirm("Sei sicuro di voler cancellare TUTTE le partite e iscrizioni?")) return;
+      const res = await fetch('/admin/reset', { method: 'POST' });
+      alert(await res.text());
+      document.getElementById("partiteContainer").innerHTML =
+        "<p class='text-gray-600'>⚠️ Seleziona un campionato per visualizzare le partite.</p>";
+    }
 
     async function logout() {
       await fetch('/logout');
-      window.location.href = '/';
+      window.location.href = "/";
     }
 
-    loadUser();
+    // Upload CSV
+    document.getElementById('csvForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const res = await fetch('/admin/upload-csv', {
+        method: 'POST',
+        body: formData
+      });
+      alert(await res.text());
+      filtraPartite();
+    });
   </script>
 </body>
 </html>

@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Dashboard Utente - StatsAIASPLnp</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100">
 
+  <!-- NAVBAR -->
   <nav class="bg-green-600 text-white p-4 flex justify-between">
     <h1 class="text-xl font-bold">🏀 StatsAIASPLnp - Area Riservata</h1>
     <div>
@@ -17,51 +19,125 @@
     </div>
   </nav>
 
-  <main class="p-6 max-w-6xl mx-auto">
-    <h2 class="text-2xl font-bold mb-4">📅Puoi filtrare le partite qua sotto (gli orari potrebbero essere differenti). Se non trovi la tua gara, creala qua.</h2>
+  <main class="p-6 max-w-7xl mx-auto space-y-8">
+    <!-- FILTRI -->
+    <section class="bg-white p-4 rounded shadow">
+      <h2 class="text-2xl font-bold mb-4">📂 Filtra Partite</h2>
+      <div class="flex flex-wrap items-end gap-4">
+        <div>
+          <label class="block text-sm mb-1">Campionato</label>
+          <select id="filterCampionato" class="border p-2 rounded min-w-[200px]">
+            <option value="">-- tutti --</option>
+            <option value="A2">A2</option>
+            <option value="Serie B">Serie B</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm mb-1">Girone</label>
+          <select id="filterGirone" class="border p-2 rounded min-w-[120px]">
+            <option value="">-- tutti --</option>
+            <option value="UNICO">UNICO</option>
+            <option value="A">A</option>
+            <option value="B">B</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm mb-1">Mostra partite dal</label>
+          <input type="date" id="filterData" class="border p-2 rounded" />
+        </div>
+        <div>
+          <label class="block text-sm mb-1">Revisioni</label>
+          <select id="filterRevision" class="border p-2 rounded">
+            <option value="">-- tutte --</option>
+            <option value="revisionata">Solo revisionate</option>
+            <option value="non_revisionate">Solo non revisionate</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm mb-1">Solo future</label>
+          <input type="checkbox" id="filterFuture" class="w-5 h-5" />
+        </div>
+        <div class="flex gap-2">
+          <button onclick="applyFilters()" class="bg-blue-600 text-white px-4 py-2 rounded">🔍 Filtra</button>
+          <button onclick="resetFilters()" class="bg-gray-200 text-gray-700 px-3 py-2 rounded">♻️ Reset</button>
+        </div>
+      </div>
+    </section>
 
-    <!-- Form creazione partita -->
-    <div class="bg-white p-4 rounded shadow mb-6">
-      <h3 class="text-lg font-bold mb-3">➕ Crea nuova partita</h3>
-      <form id="createPartitaForm" class="grid grid-cols-2 gap-4">
-        <input type="text" name="campionato" placeholder="Campionato *" class="border p-2 rounded col-span-2" required>
-        <input type="text" name="girone" placeholder="Girone" class="border p-2 rounded">
-        <input type="date" name="data_gara" class="border p-2 rounded" required>
-        <input type="text" name="numero_gara" placeholder="Numero gara *" class="border p-2 rounded" required>
-        <input type="text" name="squadra_a" placeholder="Squadra A *" class="border p-2 rounded" required>
-        <input type="text" name="squadra_b" placeholder="Squadra B *" class="border p-2 rounded" required>
-        <input type="text" name="campo_gioco" placeholder="Campo di gioco" class="border p-2 rounded">
-        <input type="time" name="orario" class="border p-2 rounded">
-        <button type="submit" class="col-span-2 bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700">Crea Partita</button>
+    <!-- CREA PARTITA -->
+    <section class="bg-white p-4 rounded shadow">
+      <h2 class="text-2xl font-bold mb-2">➕ Se non trovi la tua partita, creala tu</h2>
+      <form id="createPartitaForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-sm mb-1">Campionato *</label>
+          <select id="cpCampionato" class="border p-2 rounded w-full" onchange="updateGironiCreate()">
+            <option value="A2">A2</option>
+            <option value="Serie B">Serie B</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm mb-1">Girone *</label>
+          <select id="cpGirone" class="border p-2 rounded w-full">
+            <option value="UNICO">UNICO</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm mb-1">Data gara *</label>
+          <input type="date" id="cpData" required class="border p-2 rounded w-full" />
+        </div>
+        <div>
+          <label class="block text-sm mb-1">Orario *</label>
+          <input type="time" id="cpOrario" required class="border p-2 rounded w-full" />
+        </div>
+        <div>
+          <label class="block text-sm mb-1">Squadra di casa *</label>
+          <input id="cpSquadraA" required class="border p-2 rounded w-full" />
+        </div>
+        <div>
+          <label class="block text-sm mb-1">Squadra ospite *</label>
+          <input id="cpSquadraB" required class="border p-2 rounded w-full" />
+        </div>
+        <div class="md:col-span-2 lg:col-span-1">
+          <label class="block text-sm mb-1">Campo di gioco</label>
+          <input id="cpCampo" class="border p-2 rounded w-full" />
+        </div>
+        <div>
+          <label class="block text-sm mb-1">Numero gara (opz.)</label>
+          <input id="cpNumeroGara" class="border p-2 rounded w-full" />
+        </div>
+        <div>
+          <label class="block text-sm mb-1">Note (opz.)</label>
+          <input id="cpNote" class="border p-2 rounded w-full" />
+        </div>
+        <div class="md:col-span-2 lg:col-span-3 flex gap-3">
+          <button class="bg-green-600 text-white px-4 py-2 rounded" type="submit">💾 Crea partita</button>
+          <span id="cpMsg" class="text-sm text-gray-600"></span>
+        </div>
       </form>
-    </div>
+    </section>
 
-    <!-- Filtri -->
-    <div class="flex gap-4 mb-6 flex-wrap">
-      <select id="filterCampionato" class="border p-2 rounded">
-        <option value="">Tutti i Campionati</option>
-      </select>
-      <select id="filterGirone" class="border p-2 rounded">
-        <option value="">Tutti i Gironi</option>
-      </select>
-      <select id="filterStato" class="border p-2 rounded">
-        <option value="">Tutti gli Stati</option>
-        <option value="da_giocare">Da giocare</option>
-        <option value="in_corso">In corso</option>
-        <option value="terminata">Terminate</option>
-        <option value="revisionata">Revisionate</option>
-        <option value="da_rivedere">Da rivedere</option>
-      </select>
-    </div>
-
-    <div id="partiteContainer" class="space-y-6"></div>
+    <!-- ELENCO PARTITE -->
+    <section class="bg-white p-4 rounded shadow">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-2xl font-bold">📋 Elenco Partite</h2>
+        <div class="text-sm text-gray-600" id="pageInfo">Pagina 0</div>
+      </div>
+      <div id="partiteContainer" class="space-y-8"></div>
+      <div class="flex items-center gap-3 mt-6">
+        <button id="btnPrev" class="bg-gray-200 text-gray-700 px-3 py-1 rounded disabled:opacity-50" disabled>⬅️ Pagina precedente</button>
+        <button id="btnNext" class="bg-gray-800 text-white px-3 py-1 rounded disabled:opacity-50" disabled>➡️ Vai alla pagina successiva</button>
+      </div>
+    </section>
   </main>
 
   <script>
     let currentUser = null;
     let iscrizioniUtente = [];
     let allPartite = [];
+    let currentPage = 1;
+    const pageSize = 10;
 
+    // === CARICAMENTO UTENTE ===
     async function loadUser() {
       const res = await fetch('/me');
       if (!res.ok) {
@@ -73,74 +149,69 @@
       if (currentUser.ruolo === "admin") {
         document.getElementById("adminLink").classList.remove("hidden");
       }
-      await loadIscrizioniUtente();
+      await loadIscrizioni();
       await loadPartite();
     }
 
-    async function loadIscrizioniUtente() {
+    async function loadIscrizioni() {
       const res = await fetch('/mie-iscrizioni');
-      if (!res.ok) return;
-      iscrizioniUtente = await res.json();
+      if (res.ok) iscrizioniUtente = await res.json();
     }
 
     async function loadPartite() {
       const res = await fetch('/partite');
-      allPartite = await res.json();
-      populateFilters();
+      allPartite = res.ok ? await res.json() : [];
       renderPartite();
     }
 
-    // --- Creazione partita ---
-    document.getElementById("createPartitaForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const data = Object.fromEntries(new FormData(e.target).entries());
-      const res = await fetch('/partite/crea', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      alert(await res.text());
-      e.target.reset();
-      loadPartite();
-    });
-
-    function populateFilters() {
-      const campionati = [...new Set(allPartite.map(p => p.campionato).filter(Boolean))];
-      const gironi = [...new Set(allPartite.map(p => p.girone).filter(Boolean))];
-
-      const campSel = document.getElementById("filterCampionato");
-      const girSel = document.getElementById("filterGirone");
-
-      campSel.innerHTML = `<option value="">Tutti i Campionati</option>`;
-      girSel.innerHTML = `<option value="">Tutti i Gironi</option>`;
-
-      campionati.forEach(c => campSel.innerHTML += `<option value="${c}">${c}</option>`);
-      gironi.forEach(g => girSel.innerHTML += `<option value="${g}">${g}</option>`);
+    // === FILTRI ===
+    function resetFilters() {
+      document.getElementById("filterCampionato").value = "";
+      document.getElementById("filterGirone").value = "";
+      document.getElementById("filterData").value = "";
+      document.getElementById("filterRevision").value = "";
+      document.getElementById("filterFuture").checked = false;
+      currentPage = 1;
+      renderPartite();
     }
 
-    function renderPartite() {
+    function applyFilters() {
+      currentPage = 1;
+      renderPartite();
+    }
+
+    function filterData(partite) {
       const camp = document.getElementById("filterCampionato").value;
       const gir = document.getElementById("filterGirone").value;
-      const stato = document.getElementById("filterStato").value;
-
-      const container = document.getElementById("partiteContainer");
-      container.innerHTML = "";
-
-      let filtered = allPartite.filter(p => {
+      const data = document.getElementById("filterData").value;
+      const rev = document.getElementById("filterRevision").value;
+      const future = document.getElementById("filterFuture").checked;
+      return partite.filter(p => {
         if (camp && p.campionato !== camp) return false;
         if (gir && p.girone !== gir) return false;
-        if (stato && p.stato !== stato) return false;
+        if (data && p.data_gara < data) return false;
+        if (rev === "revisionata" && p.stato !== "revisionata") return false;
+        if (rev === "non_revisionate" && p.stato === "revisionata") return false;
+        if (future) {
+          const today = new Date().toISOString().slice(0,10);
+          if (p.data_gara < today) return false;
+        }
         return true;
       });
+    }
 
-      if (filtered.length === 0) {
+    // === RENDER PARTITE ===
+    function renderPartite() {
+      const container = document.getElementById("partiteContainer");
+      container.innerHTML = "";
+      const filtered = filterData(allPartite);
+      const start = (currentPage - 1) * pageSize;
+      const pageData = filtered.slice(start, start + pageSize);
+      if (pageData.length === 0) {
         container.innerHTML = "<p class='text-gray-500'>Nessuna partita trovata.</p>";
-        return;
       }
-
-      filtered.forEach(p => {
+      pageData.forEach(p => {
         const iscrizione = iscrizioniUtente.find(i => i.partita_id === p.id);
-
         let userSection = "";
         if (iscrizione) {
           let finegaraForm = `
@@ -150,43 +221,26 @@
             <form id="finegara-${p.id}" class="hidden mt-3 border p-3 rounded bg-gray-50" enctype="multipart/form-data">
               <input type="hidden" name="partita_id" value="${p.id}">
           `;
-
           if (iscrizione.ruolo === "caller") {
             finegaraForm += `
               <label class="block text-sm mb-1">🏆 Punteggio finale</label>
               <input type="text" name="risultato_finale" placeholder="Es: 75-68" class="border p-2 rounded w-full mb-2">
             `;
-          } else {
-            finegaraForm += `<p class="text-sm text-gray-600 mb-2">⚠️ Solo il <b>Caller</b> può inserire il risultato finale.</p>`;
           }
-
           finegaraForm += `
               <label class="block text-sm mb-1">📝 Note</label>
               <textarea name="note" class="border p-2 rounded w-full mb-2"></textarea>
-
               <label class="block text-sm mb-1">📑 Carica File FIBA LIVE STATS</label>
               <input type="file" name="file_stat" class="mb-2">
-
               <label class="block text-sm mb-1">📊 PDF statistiche</label>
               <input type="file" name="pdf_stat" accept=".pdf" class="mb-2">
-
               <button type="submit" class="bg-green-600 text-white px-3 py-1 rounded">Salva</button>
             </form>
           `;
-
           if (p.note_admin) {
-            finegaraForm += `
-              <div class="mt-3 p-2 bg-yellow-100 border border-yellow-400 rounded">
-                <p class="text-sm"><b>📝 Nota di revisione Admin:</b></p>
-                <p class="text-sm">${p.note_admin}</p>
-              </div>
-            `;
+            finegaraForm += `<div class="mt-3 p-2 bg-yellow-100 border border-yellow-400 rounded"><p class="text-sm"><b>📝 Nota Admin:</b> ${p.note_admin}</p></div>`;
           }
-
-          userSection = `
-            <p class="mt-2 text-green-700">✅ Sei iscritto come <b>${iscrizione.ruolo}</b> (arrivo: ${iscrizione.orario_arrivo || '-'})</p>
-            ${finegaraForm}
-          `;
+          userSection = `<p class="mt-2 text-green-700">✅ Iscritto come <b>${iscrizione.ruolo}</b></p>${finegaraForm}`;
         } else {
           userSection = `
             <button onclick="toggleIscrizioneForm(${p.id})" class="bg-blue-600 text-white px-3 py-1 rounded mt-2 hover:bg-blue-700">
@@ -199,68 +253,88 @@
                 <option value="statistician">Statistician</option>
                 <option value="standby">Standby</option>
               </select>
-              <label class="block text-sm mb-1">Orario di arrivo</label>
+              <label class="block text-sm mb-1">Orario arrivo</label>
               <input type="time" id="orario-${p.id}" class="border p-2 rounded w-full mb-2">
-              <button onclick="confermaIscrizione(event, ${p.id})" class="bg-green-600 text-white px-3 py-1 rounded">Conferma iscrizione</button>
+              <button onclick="confermaIscrizione(event, ${p.id})" class="bg-green-600 text-white px-3 py-1 rounded">Conferma</button>
             </form>
           `;
         }
-
         container.innerHTML += `
           <div class="bg-white p-4 rounded shadow">
             <h3 class="text-lg font-bold">${p.campionato} - ${p.squadra_a} vs ${p.squadra_b}</h3>
-            <p class="text-sm text-gray-600">
-              Gara ${p.numero_gara} | Girone ${p.girone || '-'} | Campo: ${p.campo_gioco || '-'} | Orario: ${p.orario || '-'}
-            </p>
-            <p class="mt-1">📌 Stato: <span class="font-semibold">${p.stato}</span> ${p.risultato_finale ? `| 🏆 Risultato: ${p.risultato_finale}` : ""}</p>
+            <p class="text-sm text-gray-600">📅 ${p.data_gara} | Gara ${p.numero_gara} | Girone ${p.girone} | Campo: ${p.campo_gioco || '-'} | Orario: ${p.orario || '-'}</p>
+            <p class="mt-1">📌 Stato: <span class="font-semibold">${p.stato}</span> ${p.risultato_finale ? `| 🏆 ${p.risultato_finale}` : ""}</p>
             ${userSection}
           </div>
         `;
       });
+      document.getElementById("btnPrev").disabled = currentPage <= 1;
+      document.getElementById("btnNext").disabled = start + pageSize >= filtered.length;
+      document.getElementById("pageInfo").innerText = `Pagina ${currentPage}`;
     }
 
-    function toggleIscrizioneForm(partitaId) {
-      document.getElementById(`iscrizione-${partitaId}`).classList.toggle("hidden");
+    function toggleIscrizioneForm(id) {
+      document.getElementById(`iscrizione-${id}`).classList.toggle("hidden");
     }
-
-    async function confermaIscrizione(e, partitaId) {
+    async function confermaIscrizione(e, id) {
       e.preventDefault();
-      const ruolo = document.getElementById(`ruolo-${partitaId}`).value;
-      const orario = document.getElementById(`orario-${partitaId}`).value;
-      const res = await fetch('/partite/registrati', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ partita_id: partitaId, ruolo, orario_arrivo: orario })
-      });
-      alert(await res.text());
+      const ruolo = document.getElementById(`ruolo-${id}`).value;
+      const orario = document.getElementById(`orario-${id}`).value;
+      await fetch('/partite/registrati', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({partita_id:id, ruolo, orario_arrivo:orario})});
       loadUser();
     }
-
-    function toggleFineGaraForm(partitaId) {
-      document.getElementById(`finegara-${partitaId}`).classList.toggle("hidden");
+    function toggleFineGaraForm(id) {
+      document.getElementById(`finegara-${id}`).classList.toggle("hidden");
     }
-
-    document.addEventListener("submit", async (e) => {
+    document.addEventListener("submit", async e => {
       if (e.target.id.startsWith("finegara-")) {
         e.preventDefault();
-        const formData = new FormData(e.target);
-        const res = await fetch('/partite/finegara', { method: 'POST', body: formData });
+        const res = await fetch('/partite/finegara', {method:'POST', body:new FormData(e.target)});
         alert(await res.text());
         loadUser();
       }
     });
 
-    ["filterCampionato", "filterGirone", "filterStato"].forEach(id => {
-      document.getElementById(id).addEventListener("change", renderPartite);
+    // === CREA PARTITA ===
+    document.getElementById("createPartitaForm").addEventListener("submit", async e => {
+      e.preventDefault();
+      const msg = document.getElementById("cpMsg");
+      msg.textContent = "⏳ Salvataggio...";
+      const payload = {
+        campionato: document.getElementById("cpCampionato").value,
+        girone: document.getElementById("cpGirone").value,
+        data_gara: document.getElementById("cpData").value,
+        orario: document.getElementById("cpOrario").value,
+        squadra_a: document.getElementById("cpSquadraA").value,
+        squadra_b: document.getElementById("cpSquadraB").value,
+        campo_gioco: document.getElementById("cpCampo").value,
+        numero_gara: document.getElementById("cpNumeroGara").value,
+        stato: "da_giocare",
+        risultato_finale: "",
+        note_admin: document.getElementById("cpNote").value
+      };
+      const res = await fetch('/partite/create', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+      alert(await res.text());
+      e.target.reset();
+      updateGironiCreate();
+      loadPartite();
     });
 
-    async function logout() {
-      await fetch('/logout');
-      window.location.href = '/';
+    function updateGironiCreate() {
+      const camp = document.getElementById("cpCampionato").value;
+      const gironeSel = document.getElementById("cpGirone");
+      gironeSel.innerHTML = "";
+      if (camp === "A2") gironeSel.innerHTML = "<option value='UNICO'>UNICO</option>";
+      else if (camp === "Serie B") gironeSel.innerHTML = "<option value='A'>A</option><option value='B'>B</option>";
     }
 
+    document.getElementById("btnPrev").onclick = ()=>{if(currentPage>1){currentPage--;renderPartite();}};
+    document.getElementById("btnNext").onclick = ()=>{currentPage++;renderPartite();};
+
+    async function logout(){await fetch('/logout');window.location.href='/'}
+
     loadUser();
+    updateGironiCreate();
   </script>
 </body>
 </html>
-

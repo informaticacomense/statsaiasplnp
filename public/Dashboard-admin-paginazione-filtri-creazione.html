@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gestione Partite - Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+  <!-- NAVBAR -->
+  <nav class="bg-gray-800 text-white p-4 flex justify-between items-center">
+    <h1 class="text-xl font-bold">⚙️ Pannello Admin - StatsAIASPLnp</h1>
+    <div class="flex gap-3">
+      <button onclick="cancellaTutto()" class="bg-red-600 px-3 py-1 rounded hover:bg-red-800">🗑️ Cancella tutto</button>
+      <a href="report.html" class="bg-blue-600 px-3 py-1 rounded hover:bg-blue-800">📊 Report Partite</a>
+      <button onclick="logout()" class="bg-red-500 px-3 py-1 rounded hover:bg-red-700">Logout</button>
+    </div>
+  </nav>
+
+  <main class="p-6 max-w-7xl mx-auto space-y-8">
+    <!-- FILTRI -->
+    <section class="bg-white p-4 rounded shadow">
+      <h2 class="text-2xl font-bold mb-4">📂 Filtra Partite</h2>
+      <div class="flex flex-wrap items-end gap-4">
+        <div>
+          <label class="block text-sm mb-1">Campionato</label>
+          <select id="campionatoSelect" class="border p-2 rounded min-w-[200px]">
+            <option value="">-- scegli campionato --</option>
+            <option value="A2">Serie A2</option>
+            <option value="Serie B">Serie B</option>
+            <option value="Serie C">Serie C</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm mb-1">Girone</label>
+          <input type="text" id="gironeInput" placeholder="A, B, UNICO" class="border p-2 rounded w-40" />
+        </div>
+        <div>
+          <label class="block text-sm mb-1">Mostra partite dal</label>
+          <input type="date" id="dataInput" class="border p-2 rounded" />
+        </div>
+        <div>
+          <label class="block text-sm mb-1">Revisioni</label>
+          <select id="revisionFilter" class="border p-2 rounded">
+            <option value="">-- tutte --</option>
+            <option value="revisionata">Solo revisionate</option>
+            <option value="non_revisionate">Solo non revisionate</option>
+          </select>
+        </div>
+        <div class="flex gap-2">
+          <button id="btnFiltra" onclick="iniziaFiltro()" class="bg-blue-600 text-white px-4 py-2 rounded">🔍 Filtra</button>
+          <button onclick="resetFiltri()" class="bg-gray-200 text-gray-700 px-3 py-2 rounded">♻️ Reset</button>
+        </div>
+      </div>
+      <p class="text-sm text-gray-500 mt-2">Al primo avvio nulla viene caricato: scegli i filtri e clicca “Filtra”.</p>
+    </section>
+
+    <!-- CREA PARTITA -->
+    <section class="bg-white p-4 rounded shadow">
+      <h2 class="text-2xl font-bold mb-4">➕ Crea nuova partita</h2>
+      <form id="creaPartitaForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-sm mb-1">Campionato *</label>
+          <input required id="cp_campionato" class="border p-2 rounded w-full" placeholder="A2 / Serie B / Serie C" />
+        </div>
+        <div>
+          <label class="block text-sm mb-1">Girone *</label>
+          <input required id="cp_girone" class="border p-2 rounded w-full" placeholder="A / B / UNICO" />
+        </div>
+        <div>
+          <label class="block text-sm mb-1">Data gara *</label>
+          <input required type="date" id="cp_data" class="border p-2 rounded w-full" />
+        </div>
+        <div>
+          <label class="block text-sm mb-1">Orario *</label>
+          <input required type="time" id="cp_orario" class="border p-2 rounded w-full" />
+        </div>
+        <div>
+          <label class="block text-sm mb-1">Squadra di casa *</label>
+          <input required id="cp_squadra_a" class="border p-2 rounded w-full" />
+        </div>
+        <div>
+          <label class="block text-sm mb-1">Squadra ospite *</label>
+          <input required id="cp_squadra_b" class="border p-2 rounded w-full" />
+        </div>
+        <div class="md:col-span-2 lg:col-span-1">
+          <label class="block text-sm mb-1">Campo di gioco</label>
+          <input id="cp_campo" class="border p-2 rounded w-full" />
+        </div>
+        <div>
+          <label class="block text-sm mb-1">Numero gara (opz.)</label>
+          <input id="cp_numero_gara" class="border p-2 rounded w-full" />
+        </div>
+        <div>
+          <label class="block text-sm mb-1">Note admin (opz.)</label>
+          <input id="cp_note" class="border p-2 rounded w-full" />
+        </div>
+        <div class="md:col-span-2 lg:col-span-3 flex gap-3">
+          <button class="bg-green-600 text-white px-4 py-2 rounded" type="submit">💾 Crea partita</button>
+          <span id="cp_msg" class="text-sm text-gray-600"></span>
+        </div>
+      </form>
+    </section>
+
+    <!-- UPLOAD CSV -->
+    <section class="bg-white p-4 rounded shadow">
+      <h2 class="text-xl font-bold mb-2">📂 Carica Partite da CSV</h2>
+      <form id="csvForm" class="mb-2 border p-4 bg-white rounded" enctype="multipart/form-data">
+        <input type="file" name="partite_csv" accept=".csv" class="mb-2" />
+        <button type="submit" class="bg-blue-600 text-white px-3 py-1 rounded">Carica CSV</button>
+      </form>
+      <p class="text-sm text-gray-500">Formato colonne atteso: id,campionato,girone,data_gara,numero_gara,squadra_a,squadra_b,campo_gioco,orario,stato,risultato_finale,note_admin</p>
+    </section>
+
+    <!-- ELENCO PARTITE + PAGINAZIONE -->
+    <section class="bg-white p-4 rounded shadow">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-2xl font-bold">📋 Elenco Partite e Iscritti</h2>
+        <div class="text-sm text-gray-600" id="pageInfo">Pagina 0</div>
+      </div>
+      <div id="partiteContainer" class="space-y-8">
+        <p class="text-gray-600">⚠️ Seleziona i filtri e clicca “Filtra” per visualizzare le partite.</p>
+      </div>
+      <div class="flex items-center gap-3 mt-6">
+        <button id="btnPrev" class="bg-gray-200 text-gray-700 px-3 py-1 rounded disabled:opacity-50" disabled>⬅️ Pagina precedente</button>
+        <button id="btnNext" class="bg-gray-800 text-white px-3 py-1 rounded disabled:opacity-50" disabled>➡️ Vai alla pagina successiva</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ====== STATO UI
+    let currentPage = 1;
+    const pageSize = 10; // 10 alla volta
+    let lastFilters = { campionato: "", girone: "", data: "", revision: "" };
+
+    function saveFilters() {
+      sessionStorage.setItem("filters", JSON.stringify(lastFilters));
+      sessionStorage.setItem("page", String(currentPage));
+    }
+    function loadFiltersFromStorage() {
+      try {
+        const f = JSON.parse(sessionStorage.getItem("filters") || "{}");
+        const p = parseInt(sessionStorage.getItem("page") || "1", 10);
+        if (f && (f.campionato || f.girone || f.data || f.revision)) {
+          document.getElementById("campionatoSelect").value = f.campionato || "";
+          document.getElementById("gironeInput").value = f.girone || "";
+          document.getElementById("dataInput").value = f.data || "";
+          document.getElementById("revisionFilter").value = f.revision || "";
+          lastFilters = f;
+          currentPage = p || 1;
+          // Non carichiamo automaticamente per evitare lentezze involontarie
+        }
+      } catch {}
+    }
+    loadFiltersFromStorage();
+
+    // ====== AZIONI NAVBAR
+    async function logout() {
+      try { await fetch('/logout'); } catch {}
+      window.location.href = "/";
+    }
+    async function cancellaTutto() {
+      if (!confirm("Sei sicuro di voler cancellare TUTTE le partite e iscrizioni?")) return;
+      const res = await fetch('/admin/reset', { method: 'POST' });
+      alert(await res.text());
+      document.getElementById("partiteContainer").innerHTML =
+        "<p class='text-gray-600'>⚠️ Seleziona i filtri e clicca “Filtra”.</p>";
+      currentPage = 1;
+      updatePagination(0, false);
+    }
+
+    // ====== FILTRI + CARICAMENTO
+    function resetFiltri() {
+      document.getElementById("campionatoSelect").value = "";
+      document.getElementById("gironeInput").value = "";
+      document.getElementById("dataInput").value = "";
+      document.getElementById("revisionFilter").value = "";
+      currentPage = 1;
+      lastFilters = { campionato: "", girone: "", data: "", revision: "" };
+      saveFilters();
+      document.getElementById("partiteContainer").innerHTML =
+        "<p class='text-gray-600'>⚠️ Seleziona i filtri e clicca “Filtra” per visualizzare le partite.</p>";
+      updatePagination(0, false);
+    }
+
+    function iniziaFiltro() {
+      const campionato = document.getElementById("campionatoSelect").value;
+      const girone = document.getElementById("gironeInput").value;
+      const data = document.getElementById("dataInput").value;
+      const revision = document.getElementById("revisionFilter").value;
+
+      if (!campionato) {
+        document.getElementById("partiteContainer").innerHTML =
+          "<p class='text-gray-600'>⚠️ Seleziona almeno un campionato.</p>";
+        return;
+      }
+      currentPage = 1;
+      lastFilters = { campionato, girone, data, revision };
+      saveFilters();
+      loadPartite();
+    }
+
+    async function loadPartite() {
+      const container = document.getElementById("partiteContainer");
+      container.innerHTML = `<div class='text-gray-600'>⏳ Caricamento...</div>`;
+
+      const { campionato, girone, data, revision } = lastFilters;
+      let url = "/report-partite";
+      const params = [];
+      if (campionato) params.push(`campionato=${encodeURIComponent(campionato)}`);
+      if (girone) params.push(`girone=${encodeURIComponent(girone)}`);
+      if (data) params.push(`data=${encodeURIComponent(data)}`);
+      if (revision) params.push(`revision=${encodeURIComponent(revision)}`);
+      // Paginazione server-side (consigliata)
+      params.push(`page=${currentPage}`);
+      params.push(`limit=${pageSize}`);
+      if (params.length) url += `?${params.join('&')}`;
+
+      let dati;
+      let hasMore = false;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Errore rete');
+        const json = await res.json();
+        // Supporto sia ad array semplice sia a {rows, hasMore, total}
+        if (Array.isArray(json)) {
+          dati = json;
+          // Se il backend non supporta la paginazione, proviamo a degradare lato client
+          if (dati.length > pageSize) {
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            hasMore = end < dati.length;
+            dati = dati.slice(start, end);
+          } else {
+            hasMore = dati.length === pageSize; // euristica
+          }
+        } else {
+          dati = json.rows || [];
+          hasMore = !!(json.hasMore || json.has_more || json.nextPage || json.next_page);
+        }
+      } catch (e) {
+        container.innerHTML = "<p class='text-red-600'>Errore nel caricamento partite.</p>";
+        updatePagination(0, false);
+        return;
+      }
+
+      renderPartite(dati);
+      updatePagination(dati.length, hasMore);
+      saveFilters();
+    }
+
+    function updatePagination(visibleCount, hasMore) {
+      const btnPrev = document.getElementById('btnPrev');
+      const btnNext = document.getElementById('btnNext');
+      const pageInfo = document.getElementById('pageInfo');
+
+      btnPrev.disabled = currentPage <= 1;
+      btnNext.disabled = !hasMore && visibleCount < pageSize;
+      pageInfo.textContent = `Pagina ${currentPage}`;
+
+      btnPrev.onclick = () => {
+        if (currentPage > 1) {
+          currentPage--;
+          loadPartite();
+        }
+      };
+      btnNext.onclick = () => {
+        currentPage++;
+        loadPartite();
+      };
+    }
+
+    // ====== RENDER PARTITE
+    function renderPartite(dati) {
+      const container = document.getElementById("partiteContainer");
+      container.innerHTML = "";
+
+      if (!dati || dati.length === 0) {
+        container.innerHTML = "<p class='text-gray-600'>Nessuna partita trovata.</p>";
+        return;
+      }
+
+      // Raggruppa per partita (join iscritti)
+      const grouped = {};
+      dati.forEach(r => {
+        const pid = r.partita_id ?? r.id; // fallback su id se manca partita_id
+        if (!grouped[pid]) grouped[pid] = { info: r, iscritti: [] };
+        if (r.user_id) grouped[pid].iscritti.push(r);
+      });
+
+      Object.values(grouped).forEach(gruppo => {
+        const p = gruppo.info;
+
+        // Tabella iscritti
+        let iscrittiHTML = "";
+        if (gruppo.iscritti.length === 0) {
+          iscrittiHTML = "<p class='text-gray-500'>Nessun iscritto</p>";
+        } else {
+          iscrittiHTML = `
+            <table class="w-full border mt-2 text-sm">
+              <thead class="bg-gray-200">
+                <tr>
+                  <th class="p-2">Nome</th>
+                  <th class="p-2">Email</th>
+                  <th class="p-2">Ruolo</th>
+                  <th class="p-2">Orario arrivo</th>
+                  <th class="p-2">Note</th>
+                  <th class="p-2">File</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${gruppo.iscritti.map(i => `
+                  <tr class="border-b">
+                    <td class="p-2">${i.nome || ''} ${i.cognome || ''}</td>
+                    <td class="p-2">${i.email || ''}</td>
+                    <td class="p-2">
+                      <select onchange="aggiornaRuolo(${i.id}, this.value)" class="border rounded px-1 py-0.5">
+                        <option value="caller" ${i.ruolo==='caller'?'selected':''}>Caller</option>
+                        <option value="statistician" ${i.ruolo==='statistician'?'selected':''}>Statistician</option>
+                        <option value="standby" ${i.ruolo==='standby'?'selected':''}>Standby</option>
+                      </select>
+                    </td>
+                    <td class="p-2">${i.orario_arrivo || '-'}</td>
+                    <td class="p-2">${i.note || '-'}</td>
+                    <td class="p-2">
+                      ${i.file_statistico ? `<a href="/uploads/${i.file_statistico}" target="_blank" class="text-blue-600 underline block">📑 File FIBA Live Stats</a>` : ""}
+                      ${i.pdf_statistiche ? `<a href="/uploads/${i.pdf_statistiche}" target="_blank" class="text-blue-600 underline block">📊 PDF Statistiche</a>` : ""}
+                      ${i.foto_statistiche ? `<a href="/uploads/${i.foto_statistiche}" target="_blank" class="text-blue-600 underline block">📷 Foto Referto</a>` : ""}
+                    </td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          `;
+        }
+
+        // Card partita (data ben visibile)
+        container.innerHTML += `
+          <div class="bg-white p-4 rounded shadow">
+            <h3 class="text-lg font-bold">${p.campionato || ''} - ${p.squadra_a || ''} vs ${p.squadra_b || ''}</h3>
+            <p class="text-sm text-gray-600">
+              📅 <span class="font-medium">${p.data_gara || '-'}</span> | Gara ${p.numero_gara || '-'} | Girone ${p.girone || '-'}
+            </p>
+            <p class="text-sm text-gray-600">
+              Campo: ${p.campo_gioco || '-'} | Orario: ${p.orario || '-'}
+            </p>
+            <p class="mt-1">📌 Stato: <span class="font-semibold">${p.stato || '-'}</span>
+              ${p.risultato_finale ? `| 🏆 Risultato: ${p.risultato_finale}` : ""}
+            </p>
+
+            <div class="mt-2">
+              <label class="block text-sm">📝 Note admin (visibili agli utenti):</label>
+              <textarea id="noteAdmin-${p.partita_id ?? p.id}" class="border p-2 rounded w-full mb-2">${p.note_admin || ""}</textarea>
+
+              <label class="block text-sm">📌 Stato partita:</label>
+              <select id="stato-${p.partita_id ?? p.id}" class="border p-2 rounded mb-2">
+                <option value="da_giocare" ${p.stato==="da_giocare"?"selected":""}>Da giocare</option>
+                <option value="in_corso" ${p.stato==="in_corso"?"selected":""}>In corso</option>
+                <option value="terminata" ${p.stato==="terminata"?"selected":""}>Terminata</option>
+                <option value="revisionata" ${p.stato==="revisionata"?"selected":""}>Revisionata</option>
+                <option value="da_rivedere" ${p.stato==="da_rivedere"?"selected":""}>Da rivedere</option>
+              </select>
+
+              <button onclick="aggiornaStato(${p.partita_id ?? p.id})" class="bg-green-600 text-white px-3 py-1 rounded">Salva</button>
+            </div>
+
+            <h4 class="mt-4 font-semibold">👥 Iscritti</h4>
+            ${iscrittiHTML}
+          </div>
+        `;
+      });
+    }
+
+    // ====== AZIONI RIGHE
+    async function aggiornaStato(partitaId) {
+      const stato = document.getElementById(`stato-${partitaId}`).value;
+      const note_admin = document.getElementById(`noteAdmin-${partitaId}`).value;
+      const res = await fetch('/partite/stato', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ partita_id: partitaId, stato, note_admin })
+      });
+      alert(await res.text());
+      loadPartite();
+    }
+
+    async function aggiornaRuolo(iscrizioneId, ruolo) {
+      const res = await fetch('/iscrizioni/ruolo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ iscrizione_id: iscrizioneId, ruolo })
+      });
+      alert(await res.text());
+      loadPartite();
+    }
+
+    // ====== UPLOAD CSV
+    document.getElementById('csvForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const res = await fetch('/admin/upload-csv', { method: 'POST', body: formData });
+      alert(await res.text());
+      // Ricarica pagina corrente con filtri
+      loadPartite();
+    });
+
+    // ====== CREA PARTITA
+    document.getElementById('creaPartitaForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById('cp_msg');
+      msg.textContent = '⏳ Salvataggio...';
+
+      const payload = {
+        campionato: document.getElementById('cp_campionato').value.trim(),
+        girone: document.getElementById('cp_girone').value.trim(),
+        data_gara: document.getElementById('cp_data').value,
+        orario: document.getElementById('cp_orario').value,
+        squadra_a: document.getElementById('cp_squadra_a').value.trim(),
+        squadra_b: document.getElementById('cp_squadra_b').value.trim(),
+        campo_gioco: document.getElementById('cp_campo').value.trim(),
+        numero_gara: document.getElementById('cp_numero_gara').value.trim(),
+        stato: 'da_giocare',
+        risultato_finale: '',
+        note_admin: document.getElementById('cp_note').value.trim()
+      };
+
+      try {
+        const res = await fetch('/partite/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const text = await res.text();
+        if (!res.ok) throw new Error(text || 'Errore creazione');
+        msg.textContent = '✅ Partita creata';
+        (e.target).reset();
+        // Aggiorna elenco sulla pagina corrente
+        loadPartite();
+      } catch (err) {
+        msg.textContent = '❌ ' + (err.message || 'Errore imprevisto');
+      }
+    });
+  </script>
+</body>
+</html>

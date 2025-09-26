@@ -10,7 +10,7 @@
   <!-- NAVBAR -->
   <nav class="bg-gray-800 text-white p-4 flex justify-between items-center">
     <h1 class="text-xl font-bold">🏀 StatsAIASPLnp - Partite</h1>
-    <div class="flex gap-3">
+    <div>
       <button onclick="logout()" class="bg-red-500 px-3 py-1 rounded hover:bg-red-700">Logout</button>
     </div>
   </nav>
@@ -24,7 +24,7 @@
           <label class="block text-sm mb-1">Campionato</label>
           <select id="campionatoSelect" class="border p-2 rounded min-w-[200px]">
             <option value="">-- scegli campionato --</option>
-            <option value="A2">Serie A2</option>
+            <option value="A2">A2</option>
             <option value="Serie B">Serie B</option>
           </select>
         </div>
@@ -32,9 +32,9 @@
           <label class="block text-sm mb-1">Girone</label>
           <select id="gironeSelect" class="border p-2 rounded min-w-[120px]">
             <option value="">-- tutti --</option>
-            <option value="UNICO">UNICO (solo A2)</option>
-            <option value="A">A (solo Serie B)</option>
-            <option value="B">B (solo Serie B)</option>
+            <option value="UNICO">UNICO</option>
+            <option value="A">A</option>
+            <option value="B">B</option>
           </select>
         </div>
         <div>
@@ -54,11 +54,10 @@
           <input type="checkbox" id="futureOnly" class="w-5 h-5" />
         </div>
         <div class="flex gap-2">
-          <button id="btnFiltra" onclick="iniziaFiltro()" class="bg-blue-600 text-white px-4 py-2 rounded">🔍 Filtra</button>
+          <button onclick="iniziaFiltro()" class="bg-blue-600 text-white px-4 py-2 rounded">🔍 Filtra</button>
           <button onclick="resetFiltri()" class="bg-gray-200 text-gray-700 px-3 py-2 rounded">♻️ Reset</button>
         </div>
       </div>
-      <p class="text-sm text-gray-500 mt-2">Seleziona i filtri e clicca “Filtra”.</p>
     </section>
 
     <!-- CREA PARTITA -->
@@ -67,17 +66,15 @@
       <form id="creaPartitaForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div>
           <label class="block text-sm mb-1">Campionato *</label>
-          <select required id="cp_campionato" class="border p-2 rounded w-full">
-            <option value="A2">Serie A2</option>
+          <select required id="cp_campionato" class="border p-2 rounded w-full" onchange="updateGironeOptions()">
+            <option value="A2">A2</option>
             <option value="Serie B">Serie B</option>
           </select>
         </div>
         <div>
           <label class="block text-sm mb-1">Girone *</label>
           <select required id="cp_girone" class="border p-2 rounded w-full">
-            <option value="UNICO">UNICO (A2)</option>
-            <option value="A">A (Serie B)</option>
-            <option value="B">B (Serie B)</option>
+            <option value="UNICO">UNICO</option>
           </select>
         </div>
         <div>
@@ -105,7 +102,7 @@
           <input id="cp_numero_gara" class="border p-2 rounded w-full" />
         </div>
         <div>
-          <label class="block text-sm mb-1">Note admin (opz.)</label>
+          <label class="block text-sm mb-1">Note (opz.)</label>
           <input id="cp_note" class="border p-2 rounded w-full" />
         </div>
         <div class="md:col-span-2 lg:col-span-3 flex gap-3">
@@ -150,8 +147,8 @@
     }
 
     function iniziaFiltro() {
-      const campionato = document.getElementById("campionatoSelect").value;
-      const girone = document.getElementById("gironeSelect").value;
+      const campionato = document.getElementById("campionatoSelect").value.trim();
+      const girone = document.getElementById("gironeSelect").value.trim();
       const data = document.getElementById("dataInput").value;
       const revision = document.getElementById("revisionFilter").value;
       const futureOnly = document.getElementById("futureOnly").checked;
@@ -187,20 +184,8 @@
         const res = await fetch(url);
         if (!res.ok) throw new Error('Errore rete');
         const json = await res.json();
-        if (Array.isArray(json)) {
-          dati = json;
-          if (dati.length > pageSize) {
-            const start = (currentPage - 1) * pageSize;
-            const end = start + pageSize;
-            hasMore = end < dati.length;
-            dati = dati.slice(start, end);
-          } else {
-            hasMore = dati.length === pageSize;
-          }
-        } else {
-          dati = json.rows || [];
-          hasMore = !!(json.hasMore || json.has_more || json.nextPage || json.next_page);
-        }
+        dati = Array.isArray(json) ? json : (json.rows || []);
+        hasMore = Array.isArray(json) ? dati.length === pageSize : !!json.hasMore;
       } catch (e) {
         container.innerHTML = "<p class='text-red-600'>Errore nel caricamento partite.</p>";
         updatePagination(0, false);
@@ -212,24 +197,11 @@
     }
 
     function updatePagination(visibleCount, hasMore) {
-      const btnPrev = document.getElementById('btnPrev');
-      const btnNext = document.getElementById('btnNext');
-      const pageInfo = document.getElementById('pageInfo');
-
-      btnPrev.disabled = currentPage <= 1;
-      btnNext.disabled = !hasMore && visibleCount < pageSize;
-      pageInfo.textContent = `Pagina ${currentPage}`;
-
-      btnPrev.onclick = () => {
-        if (currentPage > 1) {
-          currentPage--;
-          loadPartite();
-        }
-      };
-      btnNext.onclick = () => {
-        currentPage++;
-        loadPartite();
-      };
+      document.getElementById('btnPrev').disabled = currentPage <= 1;
+      document.getElementById('btnNext').disabled = !hasMore && visibleCount < pageSize;
+      document.getElementById('pageInfo').textContent = `Pagina ${currentPage}`;
+      document.getElementById('btnPrev').onclick = () => { if (currentPage > 1) { currentPage--; loadPartite(); } };
+      document.getElementById('btnNext').onclick = () => { currentPage++; loadPartite(); };
     }
 
     function renderPartite(dati) {
@@ -243,9 +215,7 @@
         container.innerHTML += `
           <div class="bg-white p-4 rounded shadow">
             <h3 class="text-lg font-bold">${p.campionato || ''} - ${p.squadra_a || ''} vs ${p.squadra_b || ''}</h3>
-            <p class="text-sm text-gray-600">
-              📅 <span class="font-medium">${p.data_gara || '-'}</span> | Gara ${p.numero_gara || '-'} | Girone ${p.girone || '-'}
-            </p>
+            <p class="text-sm text-gray-600">📅 <span class="font-medium">${p.data_gara || '-'}</span> | Gara ${p.numero_gara || '-'} | Girone ${p.girone || '-'}</p>
             <p class="text-sm text-gray-600">Campo: ${p.campo_gioco || '-'} | Orario: ${p.orario || '-'}</p>
             <p class="mt-1">📌 Stato: <span class="font-semibold">${p.stato || '-'}</span>
               ${p.risultato_finale ? `| 🏆 Risultato: ${p.risultato_finale}` : ""}
@@ -253,6 +223,17 @@
           </div>
         `;
       });
+    }
+
+    function updateGironeOptions() {
+      const campionato = document.getElementById("cp_campionato").value;
+      const gironeSelect = document.getElementById("cp_girone");
+      gironeSelect.innerHTML = "";
+      if (campionato === "A2") {
+        gironeSelect.innerHTML = `<option value="UNICO">UNICO</option>`;
+      } else if (campionato === "Serie B") {
+        gironeSelect.innerHTML = `<option value="A">A</option><option value="B">B</option>`;
+      }
     }
 
     async function logout() {
@@ -287,13 +268,18 @@
         if (!res.ok) throw new Error(text || 'Errore creazione');
         msg.textContent = '✅ Partita creata';
         e.target.reset();
+        updateGironeOptions();
         loadPartite();
       } catch (err) {
         msg.textContent = '❌ ' + (err.message || 'Errore imprevisto');
       }
     });
+
+    // imposta gironi corretti di default
+    updateGironeOptions();
   </script>
 </body>
 </html>
+
 
 

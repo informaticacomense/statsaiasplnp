@@ -19,12 +19,13 @@
     </div>
   </nav>
 
-  <!-- NOTIFICA REVISIONI -->
+  <!-- AVVISO REVISIONI DA CONFERMARE -->
   <div id="revisionNotice" class="hidden text-center text-red-600 font-semibold py-3">
-    ⚠️ Hai partite revisionate non ancora confermate
+    ⚠️ Hai partite revisionate da confermare
   </div>
 
   <main class="p-6 max-w-7xl mx-auto space-y-8">
+
     <!-- FILTRI -->
     <section class="bg-white p-4 rounded shadow">
       <h2 class="text-2xl font-bold mb-4">📂 Filtra partite e cerca la tua gara dal calendario</h2>
@@ -144,12 +145,14 @@
     let currentPage = 1;
     const pageSize = 10;
 
+    // Utils
     function formatDate(dateStr) {
       if (!dateStr) return "-";
       const d = new Date(dateStr);
-      return isNaN(d) ? dateStr : d.toLocaleDateString("it-IT");
+      return isNaN(d) ? dateStr : d.toLocaleDateString("it-IT"); // gg/mm/aaaa
     }
 
+    // === LOAD ===
     async function loadUser() {
       const res = await fetch('/me');
       if (!res.ok) { window.location.href = "/"; return; }
@@ -173,15 +176,23 @@
       renderPartite();
     }
 
+    // === NOTICE REVISIONI ===
     function checkRevisionNotice() {
       const mieRevisionate = allPartite.filter(p =>
         p.stato === "revisionata" &&
         iscrizioniUtente.find(i => i.partita_id === p.id) &&
-        !(p.visualizzata_da || []).includes(currentUser.id)
+        !(toArray(p.visualizzata_da)).includes(currentUser.id)
       );
       document.getElementById("revisionNotice").classList.toggle("hidden", mieRevisionate.length === 0);
     }
 
+    function toArray(v) {
+      if (!v) return [];
+      if (Array.isArray(v)) return v;
+      try { return JSON.parse(v); } catch { return []; }
+    }
+
+    // === FILTRI ===
     function resetFilters() {
       document.getElementById("filterCampionato").value = "";
       document.getElementById("filterGirone").value = "";
@@ -196,7 +207,7 @@
     function filterData(partite) {
       const camp = document.getElementById("filterCampionato").value;
       const gir = document.getElementById("filterGirone").value;
-      const data = document.getElementById("filterData").value;
+      const data = document.getElementById("filterData").value; // YYYY-MM-DD
       const rev = document.getElementById("filterRevision").value;
       const future = document.getElementById("filterFuture").checked;
       return partite.filter(p => {
@@ -217,6 +228,7 @@
       });
     }
 
+    // === RENDER ===
     function renderPartite() {
       const container = document.getElementById("partiteContainer");
       container.innerHTML = "";
@@ -233,6 +245,7 @@
         let userSection = "";
         let badge = "";
 
+        // Se iscritto: mostra ruolo, eventuale revisione e bottone conferma
         if (iscrizione) {
           let confermaBtn = "";
           let revisioneBox = "";
@@ -243,7 +256,7 @@
                                 <p class="text-sm"><b>✍️ Revisione Admin:</b> ${p.note_admin}</p>
                               </div>`;
             }
-            if (!(p.visualizzata_da || []).includes(currentUser.id)) {
+            if (!(toArray(p.visualizzata_da)).includes(currentUser.id)) {
               confermaBtn = `<button onclick="confermaVisualizzazione(${p.id})"
                               class="bg-orange-600 text-white px-3 py-1 rounded mt-2 hover:bg-orange-700">
                               👀 Conferma visualizzazione
@@ -253,20 +266,69 @@
             }
           }
 
-          userSection = `<p class="mt-2 text-green-700">✅ Iscritto come <b>${iscrizione.ruolo}</b></p>
-                         ${revisioneBox}
-                         ${confermaBtn}`;
+          // Form Fine Gara per iscritti
+          let finegaraForm = `
+            <button onclick="toggleFineGaraForm(${p.id})" class="bg-purple-600 text-white px-3 py-1 rounded mt-2 hover:bg-purple-700">
+              📄 Fine Gara
+            </button>
+            <form id="finegara-${p.id}" class="hidden mt-3 border p-3 rounded bg-gray-50" enctype="multipart/form-data">
+              <input type="hidden" name="partita_id" value="${p.id}">
+          `;
+          if (iscrizione.ruolo === "caller") {
+            finegaraForm += `
+              <label class="block text-sm mb-1">🏆 Punteggio finale</label>
+              <input type="text" name="risultato_finale" placeholder="Es: 75-68" class="border p-2 rounded w-full mb-2">
+            `;
+          }
+          finegaraForm += `
+              <label class="block text-sm mb-1">📝 Note</label>
+              <textarea name="note" class="border p-2 rounded w-full mb-2"></textarea>
+              <label class="block text-sm mb-1">📑 Carica File FIBA LIVE STATS</label>
+              <input type="file" name="file_stat" class="mb-2">
+              <label class="block text-sm mb-1">📊 PDF statistiche</label>
+              <input type="file" name="pdf_stat" accept=".pdf" class="mb-2">
+              <label class="block text-sm mb-1">📷 Foto Referto</label>
+              <input type="file" name="foto_stat" accept="image/*" class="mb-2">
+              <button type="submit" class="bg-green-600 text-white px-3 py-1 rounded">Salva</button>
+            </form>
+          `;
+          userSection = `
+            <p class="mt-2 text-green-700">✅ Iscritto come <b>${iscrizione.ruolo}</b></p>
+            ${revisioneBox}
+            ${confermaBtn}
+            ${finegaraForm}
+          `;
+        } else {
+          // Non iscritto: form registrazione
+          userSection = `
+            <button onclick="toggleIscrizioneForm(${p.id})" class="bg-blue-600 text-white px-3 py-1 rounded mt-2 hover:bg-blue-700">
+              ➕ Registrati
+            </button>
+            <form id="iscrizione-${p.id}" class="hidden mt-3 border p-3 rounded bg-gray-50">
+              <label class="block text-sm mb-1">Ruolo</label>
+              <select id="ruolo-${p.id}" class="border p-2 rounded w-full mb-2" required>
+                <option value="caller">Caller</option>
+                <option value="statistician">Statistician</option>
+                <option value="standby">Standby</option>
+              </select>
+              <label class="block text-sm mb-1">Orario arrivo</label>
+              <input type="time" id="orario-${p.id}" class="border p-2 rounded w-full mb-2" required>
+              <button onclick="confermaIscrizione(event, ${p.id})" class="bg-green-600 text-white px-3 py-1 rounded">Conferma</button>
+            </form>
+          `;
         }
 
         const dataFormattata = formatDate(p.data_gara);
         const orario = p.orario ? p.orario.slice(0,5) : "-";
 
-        container.innerHTML += `<div class="bg-white p-4 rounded shadow">
-          <h3 class="text-lg font-bold">${p.campionato} - ${p.squadra_a} vs ${p.squadra_b} ${badge}</h3>
-          <p class="text-sm text-gray-600">📅 ${dataFormattata} ore ${orario} | Gara ${p.numero_gara || "-"} | Girone ${p.girone}</p>
-          <p class="mt-1">📌 Stato: <span class="font-semibold">${p.stato}</span></p>
-          ${userSection}
-        </div>`;
+        document.getElementById("partiteContainer").innerHTML += `
+          <div class="bg-white p-4 rounded shadow">
+            <h3 class="text-lg font-bold">${p.campionato} - ${p.squadra_a} vs ${p.squadra_b} ${badge}</h3>
+            <p class="text-sm text-gray-600">📅 ${dataFormattata} ore ${orario} | Gara ${p.numero_gara || "-"} | Girone ${p.girone || "-"} | Campo: ${p.campo_gioco || '-'}</p>
+            <p class="mt-1">📌 Stato: <span class="font-semibold">${p.stato}</span> ${p.risultato_finale ? `| 🏆 ${p.risultato_finale}` : ""}</p>
+            ${userSection}
+          </div>
+        `;
       });
 
       document.getElementById("btnPrev").disabled = currentPage <= 1;
@@ -274,16 +336,52 @@
       document.getElementById("pageInfo").innerText = `Pagina ${currentPage}`;
     }
 
+    // === HANDLERS ===
+    function toggleIscrizioneForm(id) {
+      document.getElementById(`iscrizione-${id}`).classList.toggle("hidden");
+    }
+
+    async function confermaIscrizione(e, id) {
+      e.preventDefault();
+      const ruolo = document.getElementById(`ruolo-${id}`).value;
+      const orario = document.getElementById(`orario-${id}`).value;
+      const res = await fetch('/partite/registrati', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({partita_id:id, ruolo, orario_arrivo:orario})
+      });
+      alert(await res.text());
+      loadUser();
+    }
+
+    function toggleFineGaraForm(id) {
+      document.getElementById(`finegara-${id}`).classList.toggle("hidden");
+    }
+
+    // submit fine gara (delegato)
+    document.addEventListener("submit", async e => {
+      if (e.target.id && e.target.id.startsWith("finegara-")) {
+        e.preventDefault();
+        const res = await fetch('/partite/finegara', {method:'POST', body:new FormData(e.target)});
+        alert(await res.text());
+        loadUser();
+      }
+    });
+
     async function confermaVisualizzazione(id) {
-      await fetch('/partite/conferma-visualizzazione', {
+      const res = await fetch('/partite/conferma-visualizzazione', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({partita_id:id})
+        body: JSON.stringify({ partita_id:id })
       });
+      if (!res.ok) { alert(await res.text()); return; }
+
+      // aggiorna localmente per non riproporre il bottone e nascondere l'avviso
       const partita = allPartite.find(p => p.id === id);
       if (partita) {
-        if (!partita.visualizzata_da) partita.visualizzata_da = [];
-        partita.visualizzata_da.push(currentUser.id);
+        const arr = toArray(partita.visualizzata_da);
+        if (!arr.includes(currentUser.id)) arr.push(currentUser.id);
+        partita.visualizzata_da = arr;
       }
       renderPartite();
       checkRevisionNotice();
@@ -296,6 +394,7 @@
       const successMsg = document.getElementById("successMsg");
       msg.textContent = "⏳ Salvataggio...";
       successMsg.classList.add("hidden");
+      successMsg.classList.remove("text-red-600");
 
       const payload = {
         campionato: document.getElementById("cpCampionato").value,
@@ -306,12 +405,10 @@
         squadra_b: document.getElementById("cpSquadraB").value,
         campo_gioco: document.getElementById("cpCampo").value,
         numero_gara: document.getElementById("cpNumeroGara").value,
-        stato: "da_giocare",
-        risultato_finale: "",
         note_admin: document.getElementById("cpNote").value
       };
 
-      const res = await fetch('/partite/create', {
+      const res = await fetch('/partite/crea', { // <= endpoint corretto
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify(payload)
@@ -323,7 +420,7 @@
         successMsg.textContent = "✅ Partita creata con successo";
         successMsg.classList.remove("hidden");
       } else {
-        successMsg.textContent = "❌ Errore: " + text;
+        successMsg.textContent = "❌ " + text;
         successMsg.classList.remove("hidden");
         successMsg.classList.add("text-red-600");
       }
@@ -342,14 +439,13 @@
     }
 
     // Paginazione + logout
-    document.getElementById("btnPrev").onclick = ()=>{if(currentPage>1){currentPage--;renderPartite();}};
-    document.getElementById("btnNext").onclick = ()=>{currentPage++;renderPartite();};
-    async function logout(){await fetch('/logout');window.location.href='/'}
+    document.getElementById("btnPrev").onclick = ()=>{ if(currentPage>1){currentPage--;renderPartite();} };
+    document.getElementById("btnNext").onclick = ()=>{ currentPage++;renderPartite(); };
+    async function logout(){ await fetch('/logout'); window.location.href='/' }
 
+    // Start
     loadUser();
     updateGironiCreate();
   </script>
 </body>
 </html>
-
-

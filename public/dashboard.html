@@ -177,7 +177,7 @@
       const mieRevisionate = allPartite.filter(p =>
         p.stato === "revisionata" &&
         iscrizioniUtente.find(i => i.partita_id === p.id) &&
-        !p.visualizzata_da?.includes(currentUser.id)
+        !(p.visualizzata_da || []).includes(currentUser.id)
       );
       document.getElementById("revisionNotice").classList.toggle("hidden", mieRevisionate.length === 0);
     }
@@ -243,7 +243,7 @@
                                 <p class="text-sm"><b>✍️ Revisione Admin:</b> ${p.note_admin}</p>
                               </div>`;
             }
-            if (!(p.visualizzata_da?.includes(currentUser.id))) {
+            if (!(p.visualizzata_da || []).includes(currentUser.id)) {
               confermaBtn = `<button onclick="confermaVisualizzazione(${p.id})"
                               class="bg-orange-600 text-white px-3 py-1 rounded mt-2 hover:bg-orange-700">
                               👀 Conferma visualizzazione

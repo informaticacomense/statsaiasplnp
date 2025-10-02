@@ -26,6 +26,52 @@
     </form>
   </section>
 
+  <!-- FILTRI -->
+  <section class="bg-white p-4 rounded shadow max-w-6xl mx-auto mb-6">
+    <h2 class="text-2xl font-bold mb-4">📂 Filtra partite</h2>
+    <div class="flex flex-wrap items-end gap-4">
+      <div>
+        <label class="block text-sm mb-1">Campionato</label>
+        <select id="filterCampionato" class="border p-2 rounded min-w-[200px]">
+          <option value="">-- tutti --</option>
+          <option value="A2">A2</option>
+          <option value="Serie B">Serie B</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Girone</label>
+        <select id="filterGirone" class="border p-2 rounded min-w-[120px]">
+          <option value="">-- tutti --</option>
+          <option value="UNICO">UNICO</option>
+          <option value="A">A</option>
+          <option value="B">B</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Mostra partite dal</label>
+        <input type="date" id="filterData" class="border p-2 rounded" />
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Stato</label>
+        <select id="filterRevision" class="border p-2 rounded">
+          <option value="">-- tutte --</option>
+          <option value="revisionata">Revisionate</option>
+          <option value="non_revisionate">Non revisionate</option>
+          <option value="da_giocare">Da giocare</option>
+          <option value="terminata">Terminate</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Solo future</label>
+        <input type="checkbox" id="filterFuture" class="w-5 h-5" />
+      </div>
+      <div class="flex gap-2">
+        <button onclick="applyFilters()" class="bg-blue-600 text-white px-4 py-2 rounded">🔍 Filtra</button>
+        <button onclick="resetFilters()" class="bg-gray-200 text-gray-700 px-3 py-2 rounded">♻️ Reset</button>
+      </div>
+    </div>
+  </section>
+
   <!-- ELENCO PARTITE -->
   <main class="p-6 max-w-6xl mx-auto">
     <h2 class="text-2xl font-bold mb-4">📋 Elenco Partite e Iscritti</h2>
@@ -33,6 +79,8 @@
   </main>
 
   <script>
+    let allPartite = [];
+
     function formatData(isoDate, orario) {
       if (!isoDate) return "-";
       const d = new Date(isoDate);
@@ -44,13 +92,42 @@
 
     async function loadPartite() {
       const res = await fetch('/report-partite');
-      const container = document.getElementById("partiteContainer");
       if (!res.ok) {
-        container.innerHTML = "<p class='text-red-600'>Errore nel caricamento partite.</p>";
+        document.getElementById("partiteContainer").innerHTML = "<p class='text-red-600'>Errore nel caricamento partite.</p>";
         return;
       }
-
       const dati = await res.json();
+      allPartite = dati;
+      renderPartite();
+    }
+
+    function filterData(partite) {
+      const camp = document.getElementById("filterCampionato").value;
+      const gir = document.getElementById("filterGirone").value;
+      const data = document.getElementById("filterData").value;
+      const stato = document.getElementById("filterRevision").value;
+      const future = document.getElementById("filterFuture").checked;
+
+      return partite.filter(p => {
+        if (camp && p.campionato !== camp) return false;
+        if (gir && p.girone !== gir) return false;
+        if (data && p.data_gara < data) return false;
+        if (stato) {
+          if (stato === "revisionata" && p.stato !== "revisionata") return false;
+          if (stato === "non_revisionate" && p.stato === "revisionata") return false;
+          if (stato !== "revisionata" && stato !== "non_revisionate" && p.stato !== stato) return false;
+        }
+        if (future) {
+          const today = new Date().toISOString().slice(0,10);
+          if (p.data_gara < today) return false;
+        }
+        return true;
+      });
+    }
+
+    function renderPartite() {
+      const dati = filterData(allPartite);
+      const container = document.getElementById("partiteContainer");
       container.innerHTML = "";
 
       const grouped = {};
@@ -62,11 +139,9 @@
       Object.values(grouped).forEach(gruppo => {
         const p = gruppo.info;
 
-        let iscrittiHTML = "";
-        if (gruppo.iscritti.length === 0) {
-          iscrittiHTML = "<p class='text-gray-500'>Nessun iscritto</p>";
-        } else {
-          iscrittiHTML = `
+        let iscrittiHTML = gruppo.iscritti.length === 0
+          ? "<p class='text-gray-500'>Nessun iscritto</p>"
+          : `
             <table class="w-full border mt-2 text-sm">
               <thead class="bg-gray-200">
                 <tr>
@@ -95,14 +170,12 @@
                     <td class="p-2">
                       ${i.file_statistico ? `<a href="/uploads/${i.file_statistico}" target="_blank" class="text-blue-600 underline block">📑 FIBA Stats</a>` : ""}
                       ${i.pdf_statistiche ? `<a href="/uploads/${i.pdf_statistiche}" target="_blank" class="text-blue-600 underline block">📊 PDF</a>` : ""}
-                      ${i.foto_statistiche ? `<a href="/uploads/${i.foto_statistiche}" target="_blank" class="text-blue-600 underline block">📷 Referto</a>` : ""}
                     </td>
                   </tr>
                 `).join("")}
               </tbody>
             </table>
           `;
-        }
 
         container.innerHTML += `
           <div class="bg-white p-4 rounded shadow">
@@ -173,13 +246,13 @@
     document.getElementById('csvForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const formData = new FormData(e.target);
-      const res = await fetch('/admin/upload-csv', {
-        method: 'POST',
-        body: formData
-      });
+      const res = await fetch('/admin/upload-csv', { method: 'POST', body: formData });
       alert(await res.text());
       loadPartite();
     });
+
+    function applyFilters(){ renderPartite(); }
+    function resetFilters(){ document.getElementById("filterCampionato").value="";document.getElementById("filterGirone").value="";document.getElementById("filterData").value="";document.getElementById("filterRevision").value="";document.getElementById("filterFuture").checked=false;renderPartite(); }
 
     loadPartite();
   </script>

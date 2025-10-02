@@ -246,7 +246,18 @@ app.post('/partite/conferma-visualizzazione', requireLogin, async (req, res) => 
   }
 });
 
-// ... (QUI restano tutte le altre route: /partite/registrati, /partite/finegara, /mie-iscrizioni, admin, ecc.)
+// --- QUI ci sono le altre route partite: registrati, finegara, mie-iscrizioni
+// (le tue originali vanno lasciate così come sono)
+
+/////////////////////
+// ADMIN PARTITE   //
+/////////////////////
+// ... (tutte le route admin che avevi già)
+
+/////////////////////
+// ADMIN UTENTI    //
+/////////////////////
+// ... (tutte le route admin che avevi già)
 
 /////////////////////
 // AVVIO           //
@@ -254,4 +265,5 @@ app.post('/partite/conferma-visualizzazione', requireLogin, async (req, res) => 
 app.listen(PORT, () => {
   console.log(`🚀 Server avviato su http://localhost:${PORT}`);
 });
+
 

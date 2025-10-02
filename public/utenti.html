@@ -7,146 +7,121 @@
 </head>
 <body class="bg-gray-100">
 
-  <!-- Navbar -->
+  <!-- NAVBAR -->
   <nav class="bg-gray-800 text-white p-4 flex justify-between">
     <h1 class="text-xl font-bold">👥 Gestione Utenti - StatsAIASPLnp</h1>
     <div class="flex gap-2">
       <a href="admin.html" class="bg-blue-600 px-3 py-1 rounded hover:bg-blue-800">⚙️ Gestione Partite</a>
-      <a href="crea_campi.html" class="bg-yellow-600 px-3 py-1 rounded hover:bg-yellow-800">🛠️ Crea Campi</a>
-      <a href="stampa_utenti.html" class="bg-green-600 px-3 py-1 rounded hover:bg-green-800">🖨️ Stampa Utenti</a>
+      <button onclick="stampaUtenti()" class="bg-green-600 px-3 py-1 rounded hover:bg-green-800">🖨️ Stampa</button>
       <button onclick="logout()" class="bg-red-500 px-3 py-1 rounded hover:bg-red-700">Logout</button>
     </div>
   </nav>
 
-  <!-- Main -->
-  <main class="p-6 max-w-7xl mx-auto">
+  <main class="p-6 max-w-6xl mx-auto">
     <h2 class="text-2xl font-bold mb-4">📋 Elenco Utenti</h2>
 
-    <div class="overflow-x-auto">
-      <table class="min-w-full bg-white shadow rounded-lg overflow-hidden text-sm">
-        <thead class="bg-green-600 text-white">
-          <tr>
-            <th class="px-4 py-2 text-left">Nome</th>
-            <th class="px-4 py-2 text-left">Email</th>
-            <th class="px-4 py-2 text-left">Ruolo</th>
-            <th class="px-4 py-2 text-left">Club</th>
-            <th class="px-4 py-2 text-left">Sede Corso</th>
-            <th class="px-4 py-2 text-left">Data Corso</th>
-            <th class="px-4 py-2 text-left">Certificazione</th>
-            <th class="px-4 py-2 text-left">Azioni</th>
-          </tr>
-        </thead>
-        <tbody id="usersTable" class="divide-y divide-gray-200"></tbody>
-      </table>
+    <!-- FILTRI -->
+    <div class="mb-4 flex gap-3">
+      <label class="flex items-center gap-2">
+        <input type="radio" name="filtroCert" value="" checked onchange="renderUtenti()"> Tutti
+      </label>
+      <label class="flex items-center gap-2">
+        <input type="radio" name="filtroCert" value="cert" onchange="renderUtenti()"> Solo Certificati LNP
+      </label>
+      <label class="flex items-center gap-2">
+        <input type="radio" name="filtroCert" value="noncert" onchange="renderUtenti()"> Solo NON Certificati
+      </label>
     </div>
+
+    <!-- TABELLA -->
+    <div id="utentiContainer" class="bg-white p-4 rounded shadow"></div>
   </main>
 
-  <!-- Modal Partite -->
-  <div id="modalPartite" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-    <div class="bg-white rounded shadow-lg p-6 w-full max-w-2xl relative">
-      <h3 class="text-xl font-bold mb-4">📅 Partite Utente</h3>
-      <table class="w-full border text-sm">
-        <thead class="bg-gray-200">
-          <tr>
-            <th class="px-2 py-1">Data</th>
-            <th class="px-2 py-1">Campionato</th>
-            <th class="px-2 py-1">Gara</th>
-            <th class="px-2 py-1">Squadre</th>
-            <th class="px-2 py-1">Ruolo</th>
-          </tr>
-        </thead>
-        <tbody id="partiteUtenteTable"></tbody>
-      </table>
-      <button onclick="chiudiModal()" class="mt-4 bg-red-600 text-white px-3 py-1 rounded hover:bg-red-800">Chiudi</button>
-    </div>
-  </div>
-
-  <!-- Script -->
   <script>
-    async function loadUsers() {
+    let utenti = [];
+
+    async function loadUtenti() {
       const res = await fetch('/admin/users');
       if (!res.ok) {
-        document.getElementById("usersTable").innerHTML =
-          "<tr><td colspan='8' class='p-4 text-red-600'>Errore caricamento utenti</td></tr>";
+        document.getElementById("utentiContainer").innerHTML = "<p class='text-red-600'>Errore nel caricamento utenti.</p>";
         return;
       }
-      const users = await res.json();
-      const tbody = document.getElementById("usersTable");
-      tbody.innerHTML = "";
-
-      users.forEach(u => {
-        tbody.innerHTML += `
-          <tr>
-            <td class="px-4 py-2">${u.nome} ${u.cognome}</td>
-            <td class="px-4 py-2">${u.email}</td>
-            <td class="px-4 py-2">
-              <select onchange="aggiornaRuolo(${u.id}, this.value)" class="border rounded px-2 py-1">
-                <option value="user" ${u.ruolo==='user'?'selected':''}>User</option>
-                <option value="admin" ${u.ruolo==='admin'?'selected':''}>Admin</option>
-              </select>
-            </td>
-            <td class="px-4 py-2">${u.club_appartenenza || "-"}</td>
-            <td class="px-4 py-2">${u.sede_corso || "-"}</td>
-            <td class="px-4 py-2">${u.data_corso ? new Date(u.data_corso).toLocaleDateString() : "-"}</td>
-            <td class="px-4 py-2">
-              ${u.certificato_lnp 
-                ? '<span class="bg-green-600 text-white text-xs px-2 py-1 rounded">✅ LNP</span>' 
-                : '<span class="bg-gray-400 text-white text-xs px-2 py-1 rounded">No</span>'}
-            </td>
-            <td class="px-4 py-2 flex gap-2">
-              <a href="utente_dettaglio.html?id=${u.id}" class="bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-800">✏️ Modifica</a>
-              <button onclick="mostraPartite(${u.id})" class="bg-yellow-600 text-white px-2 py-1 rounded hover:bg-yellow-800">📅 Partite</button>
-              <button onclick="eliminaUtente(${u.id})" class="bg-red-600 text-white px-2 py-1 rounded hover:bg-red-800">🗑️ Elimina</button>
-            </td>
-          </tr>
-        `;
-      });
+      utenti = await res.json();
+      renderUtenti();
     }
 
-    async function mostraPartite(userId) {
-      const res = await fetch(`/admin/users/${userId}/partite`);
-      const partite = await res.json();
-      const tbody = document.getElementById("partiteUtenteTable");
-      tbody.innerHTML = "";
+    function renderUtenti() {
+      const container = document.getElementById("utentiContainer");
+      const filtro = document.querySelector("input[name='filtroCert']:checked").value;
 
-      if (partite.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-2 text-gray-500">Nessuna partita trovata</td></tr>`;
-      } else {
-        partite.forEach(p => {
-          tbody.innerHTML += `
-            <tr>
-              <td class="px-2 py-1">${p.data_gara ? new Date(p.data_gara).toLocaleDateString() : "-"}</td>
-              <td class="px-2 py-1">${p.campionato}</td>
-              <td class="px-2 py-1">${p.numero_gara}</td>
-              <td class="px-2 py-1">${p.squadra_a} vs ${p.squadra_b}</td>
-              <td class="px-2 py-1">${p.ruolo}</td>
-            </tr>
-          `;
-        });
+      let lista = utenti;
+      if (filtro === "cert") lista = utenti.filter(u => u.certificato_lnp);
+      if (filtro === "noncert") lista = utenti.filter(u => !u.certificato_lnp);
+
+      if (lista.length === 0) {
+        container.innerHTML = "<p class='text-gray-500'>Nessun utente trovato.</p>";
+        return;
       }
 
-      document.getElementById("modalPartite").classList.remove("hidden");
+      container.innerHTML = `
+        <table class="w-full border text-sm">
+          <thead class="bg-gray-200">
+            <tr>
+              <th class="p-2 border">Nome</th>
+              <th class="p-2 border">Cognome</th>
+              <th class="p-2 border">Email</th>
+              <th class="p-2 border">Società</th>
+              <th class="p-2 border">Certificato LNP</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${lista.map(u => `
+              <tr class="border-b">
+                <td class="p-2 border">${u.nome}</td>
+                <td class="p-2 border">${u.cognome}</td>
+                <td class="p-2 border">${u.email}</td>
+                <td class="p-2 border">${u.club_appartenenza || "-"}</td>
+                <td class="p-2 border">${u.certificato_lnp ? "✅ Sì" : "❌ No"}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
     }
 
-    function chiudiModal() {
-      document.getElementById("modalPartite").classList.add("hidden");
-    }
+    function stampaUtenti() {
+      let lista = [...utenti];
 
-    async function aggiornaRuolo(userId, ruolo) {
-      const res = await fetch('/admin/users/update-role', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, ruolo })
-      });
-      alert(await res.text());
-      loadUsers();
-    }
+      // Ordina per società
+      lista.sort((a, b) => (a.club_appartenenza || "").localeCompare(b.club_appartenenza || ""));
 
-    async function eliminaUtente(userId) {
-      if (!confirm("Sei sicuro di voler eliminare questo utente?")) return;
-      const res = await fetch(`/admin/users/delete/${userId}`, { method: 'DELETE' });
-      alert(await res.text());
-      loadUsers();
+      let contenuto = `
+        <h1 style="text-align:center;">📋 Elenco Utenti</h1>
+        <table border="1" cellspacing="0" cellpadding="5" style="width:100%; border-collapse:collapse;">
+          <thead>
+            <tr style="background:#eee;">
+              <th>Società</th>
+              <th>Nome</th>
+              <th>Cognome</th>
+              <th>Certificato</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${lista.map(u => `
+              <tr>
+                <td>${u.club_appartenenza || "-"}</td>
+                <td>${u.nome}</td>
+                <td>${u.cognome}</td>
+                <td>${u.certificato_lnp ? "✅ Sì" : "❌ No"}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+
+      const w = window.open("", "_blank");
+      w.document.write(contenuto);
+      w.print();
     }
 
     async function logout() {
@@ -154,7 +129,9 @@
       window.location.href = "/";
     }
 
-    loadUsers();
+    loadUtenti();
   </script>
+
 </body>
 </html>
+

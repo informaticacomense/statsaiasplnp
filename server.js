@@ -431,6 +431,31 @@ app.post('/admin/upload-csv', requireAdmin, uploadFiles.single('partite_csv'), a
 // ADMIN UTENTI    //
 /////////////////////
 
+app.get('/admin/users/print', requireAdmin, async (req, res) => {
+  const filter = req.query.filter || "all";
+
+  try {
+    let sql = `
+      SELECT id, nome, cognome, club_appartenenza, certificato_lnp
+      FROM users
+    `;
+
+    if (filter === "certificati") {
+      sql += " WHERE certificato_lnp = true";
+    } else if (filter === "non_certificati") {
+      sql += " WHERE certificato_lnp = false";
+    }
+
+    sql += " ORDER BY club_appartenenza ASC NULLS LAST, cognome ASC";
+
+    const result = await db.query(sql);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("❌ Errore caricamento utenti:", err);
+    res.status(500).send("Errore caricamento utenti.");
+  }
+});
+
 // Lista utenti
 app.get('/admin/users', requireAdmin, async (req, res) => {
   try {

@@ -19,6 +19,11 @@
     </div>
   </nav>
 
+  <!-- NOTIFICA REVISIONI -->
+  <div id="revisionNotice" class="hidden text-center text-red-600 font-semibold py-3">
+    ⚠️ Hai partite revisionate non ancora confermate
+  </div>
+
   <main class="p-6 max-w-7xl mx-auto space-y-8">
     <!-- FILTRI -->
     <section class="bg-white p-4 rounded shadow">
@@ -68,7 +73,7 @@
     <!-- CREA PARTITA -->
     <section class="bg-white p-4 rounded shadow">
       <h2 class="text-2xl font-bold mb-2">➕ Se non trovi la tua partita, creala tu</h2>
-      <form id="createPartitaForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <form id="createPartitaForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" onsubmit="return false;">
         <div>
           <label class="block text-sm mb-1">Campionato *</label>
           <select id="cpCampionato" class="border p-2 rounded w-full" onchange="updateGironiCreate()">
@@ -111,7 +116,7 @@
           <input id="cpNote" class="border p-2 rounded w-full" />
         </div>
         <div class="md:col-span-2 lg:col-span-3 flex gap-3">
-          <button class="bg-green-600 text-white px-4 py-2 rounded" type="submit">💾 Crea partita</button>
+          <button id="btnCrea" class="bg-green-600 text-white px-4 py-2 rounded">💾 Crea partita</button>
           <span id="cpMsg" class="text-sm text-gray-600"></span>
         </div>
       </form>
@@ -152,6 +157,7 @@
       if (currentUser.ruolo === "admin") document.getElementById("adminLink").classList.remove("hidden");
       await loadIscrizioni();
       await loadPartite();
+      checkRevisionNotice();
     }
 
     async function loadIscrizioni() {
@@ -162,9 +168,17 @@
     async function loadPartite() {
       const res = await fetch('/partite');
       allPartite = res.ok ? await res.json() : [];
-      // ordina per data se possibile
       allPartite.sort((a,b)=> new Date(a.data_gara) - new Date(b.data_gara));
       renderPartite();
+    }
+
+    function checkRevisionNotice() {
+      const mieRevisionate = allPartite.filter(p =>
+        p.stato === "revisionata" &&
+        iscrizioniUtente.find(i => i.partita_id === p.id) &&
+        !p.visualizzata_da?.includes(currentUser.id)
+      );
+      document.getElementById("revisionNotice").classList.toggle("hidden", mieRevisionate.length === 0);
     }
 
     function resetFilters() {
@@ -271,10 +285,11 @@
         partita.visualizzata_da.push(currentUser.id);
       }
       renderPartite();
+      checkRevisionNotice();
     }
 
     // CREA PARTITA
-    document.getElementById("createPartitaForm").addEventListener("submit", async e => {
+    document.getElementById("btnCrea").addEventListener("click", async e => {
       e.preventDefault();
       const msg = document.getElementById("cpMsg");
       msg.textContent = "⏳ Salvataggio...";
@@ -291,9 +306,14 @@
         risultato_finale: "",
         note_admin: document.getElementById("cpNote").value
       };
-      const res = await fetch('/partite/create', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+      const res = await fetch('/partite/create', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(payload)
+      });
+      msg.textContent = "";
       alert(await res.text());
-      e.target.reset();
+      document.getElementById("createPartitaForm").reset();
       updateGironiCreate();
       loadPartite();
     });
@@ -316,3 +336,4 @@
   </script>
 </body>
 </html>
+

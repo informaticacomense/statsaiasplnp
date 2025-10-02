@@ -12,7 +12,7 @@
     <h1 class="text-xl font-bold">👥 Gestione Utenti - StatsAIASPLnp</h1>
     <div class="flex gap-2">
       <a href="admin.html" class="bg-blue-600 px-3 py-1 rounded hover:bg-blue-800">⚙️ Gestione Partite</a>
-      <button onclick="stampaUtenti()" class="bg-green-600 px-3 py-1 rounded hover:bg-green-800">🖨️ Stampa</button>
+      <button onclick="stampaUtenti()" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-800">🖨️ Stampa</button>
       <button onclick="logout()" class="bg-red-500 px-3 py-1 rounded hover:bg-red-700">Logout</button>
     </div>
   </nav>
@@ -36,50 +36,6 @@
     <!-- TABELLA -->
     <div id="utentiContainer" class="bg-white p-4 rounded shadow"></div>
   </main>
-
-  <!-- MODALE MODIFICA -->
-  <div id="modalEdit" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-    <div class="bg-white p-6 rounded shadow w-full max-w-lg">
-      <h3 class="text-xl font-bold mb-3">✏️ Modifica Utente</h3>
-      <form id="editForm" class="space-y-3">
-        <input type="hidden" name="id" id="editId">
-        <div>
-          <label class="block text-sm">Nome</label>
-          <input id="editNome" name="nome" class="border p-2 rounded w-full">
-        </div>
-        <div>
-          <label class="block text-sm">Cognome</label>
-          <input id="editCognome" name="cognome" class="border p-2 rounded w-full">
-        </div>
-        <div>
-          <label class="block text-sm">Email</label>
-          <input id="editEmail" name="email" class="border p-2 rounded w-full">
-        </div>
-        <div>
-          <label class="block text-sm">Società</label>
-          <input id="editClub" name="club_appartenenza" class="border p-2 rounded w-full">
-        </div>
-        <div>
-          <label class="block text-sm">Ruolo</label>
-          <select id="editRuolo" name="ruolo" class="border p-2 rounded w-full">
-            <option value="user">User</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm">Certificato LNP</label>
-          <select id="editCert" name="certificato_lnp" class="border p-2 rounded w-full">
-            <option value="true">✅ Sì</option>
-            <option value="false">❌ No</option>
-          </select>
-        </div>
-        <div class="flex gap-2 mt-4">
-          <button type="button" onclick="closeModal()" class="bg-gray-400 px-3 py-1 rounded">Chiudi</button>
-          <button type="submit" class="bg-green-600 text-white px-3 py-1 rounded">💾 Salva</button>
-        </div>
-      </form>
-    </div>
-  </div>
 
   <!-- MODALE PARTITE -->
   <div id="modalPartite" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
@@ -139,7 +95,8 @@
                 <td class="p-2 border">${u.club_appartenenza || "-"}</td>
                 <td class="p-2 border">${u.certificato_lnp ? "✅ Sì" : "❌ No"}</td>
                 <td class="p-2 border flex gap-2">
-                  <button onclick="editUtente(${u.id})" class="bg-yellow-500 text-white px-2 py-1 rounded">✏️</button>
+                  <button onclick="window.location.href='utente_dettaglio.html?id=${u.id}'" 
+                          class="bg-yellow-500 text-white px-2 py-1 rounded">✏️</button>
                   <button onclick="deleteUtente(${u.id})" class="bg-red-600 text-white px-2 py-1 rounded">🗑️</button>
                   <button onclick="viewPartite(${u.id})" class="bg-blue-600 text-white px-2 py-1 rounded">📋</button>
                 </td>
@@ -149,37 +106,6 @@
         </table>
       `;
     }
-
-    // === MODIFICA UTENTE ===
-    async function editUtente(id) {
-      const res = await fetch(`/admin/users/${id}`);
-      const u = await res.json();
-      document.getElementById("editId").value = u.id;
-      document.getElementById("editNome").value = u.nome;
-      document.getElementById("editCognome").value = u.cognome;
-      document.getElementById("editEmail").value = u.email;
-      document.getElementById("editClub").value = u.club_appartenenza || "";
-      document.getElementById("editRuolo").value = u.ruolo;
-      document.getElementById("editCert").value = u.certificato_lnp ? "true" : "false";
-      document.getElementById("modalEdit").classList.remove("hidden");
-    }
-
-    function closeModal() {
-      document.getElementById("modalEdit").classList.add("hidden");
-    }
-
-    document.getElementById("editForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const formData = Object.fromEntries(new FormData(e.target).entries());
-      const res = await fetch('/admin/users/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      alert(await res.text());
-      closeModal();
-      loadUtenti();
-    });
 
     // === ELIMINA UTENTE ===
     async function deleteUtente(id) {

@@ -6,13 +6,15 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @media print {
-      button, select { display: none; }
+      button, select, .no-print { display: none; }
+      body { background: white; }
     }
   </style>
 </head>
 <body class="bg-gray-100 p-6">
 
-  <div class="flex justify-between items-center mb-4">
+  <!-- HEADER -->
+  <div class="flex justify-between items-center mb-4 no-print">
     <h1 class="text-2xl font-bold">📋 Elenco Utenti</h1>
     <div class="flex gap-2">
       <select id="filter" class="border rounded px-2 py-1">
@@ -25,12 +27,13 @@
     </div>
   </div>
 
+  <!-- TABELLA -->
   <table class="w-full bg-white shadow rounded text-sm">
     <thead class="bg-green-600 text-white">
       <tr>
+        <th class="px-4 py-2 text-left">Società</th>
         <th class="px-4 py-2 text-left">Nome</th>
         <th class="px-4 py-2 text-left">Cognome</th>
-        <th class="px-4 py-2 text-left">Club</th>
         <th class="px-4 py-2 text-left">Certificazione</th>
       </tr>
     </thead>
@@ -41,7 +44,17 @@
     async function loadUsers() {
       const filter = document.getElementById("filter").value;
       const res = await fetch(`/admin/users/print?filter=${filter}`);
-      const users = await res.json();
+      let users = await res.json();
+
+      // Ordina per società e poi per cognome
+      users.sort((a, b) => {
+        const clubA = (a.club_appartenenza || "").toLowerCase();
+        const clubB = (b.club_appartenenza || "").toLowerCase();
+        if (clubA < clubB) return -1;
+        if (clubA > clubB) return 1;
+        return a.cognome.localeCompare(b.cognome);
+      });
+
       const tbody = document.getElementById("usersTable");
       tbody.innerHTML = "";
 
@@ -53,9 +66,9 @@
       users.forEach(u => {
         tbody.innerHTML += `
           <tr>
+            <td class="px-4 py-2">${u.club_appartenenza || "-"}</td>
             <td class="px-4 py-2">${u.nome}</td>
             <td class="px-4 py-2">${u.cognome}</td>
-            <td class="px-4 py-2">${u.club_appartenenza || "-"}</td>
             <td class="px-4 py-2">
               ${u.certificato_lnp ? "✅ Certificato LNP" : "❌ Non certificato"}
             </td>
@@ -64,7 +77,9 @@
       });
     }
 
+    // Caricamento iniziale
     loadUsers();
   </script>
 </body>
 </html>
+

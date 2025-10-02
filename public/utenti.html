@@ -17,7 +17,7 @@
     </div>
   </nav>
 
-  <main class="p-6 max-w-6xl mx-auto">
+  <main class="p-6 max-w-7xl mx-auto">
     <h2 class="text-2xl font-bold mb-4">📋 Elenco Utenti</h2>
 
     <!-- FILTRI -->
@@ -36,6 +36,61 @@
     <!-- TABELLA -->
     <div id="utentiContainer" class="bg-white p-4 rounded shadow"></div>
   </main>
+
+  <!-- MODALE MODIFICA -->
+  <div id="modalEdit" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+    <div class="bg-white p-6 rounded shadow w-full max-w-lg">
+      <h3 class="text-xl font-bold mb-3">✏️ Modifica Utente</h3>
+      <form id="editForm" class="space-y-3">
+        <input type="hidden" name="id" id="editId">
+        <div>
+          <label class="block text-sm">Nome</label>
+          <input id="editNome" name="nome" class="border p-2 rounded w-full">
+        </div>
+        <div>
+          <label class="block text-sm">Cognome</label>
+          <input id="editCognome" name="cognome" class="border p-2 rounded w-full">
+        </div>
+        <div>
+          <label class="block text-sm">Email</label>
+          <input id="editEmail" name="email" class="border p-2 rounded w-full">
+        </div>
+        <div>
+          <label class="block text-sm">Società</label>
+          <input id="editClub" name="club_appartenenza" class="border p-2 rounded w-full">
+        </div>
+        <div>
+          <label class="block text-sm">Ruolo</label>
+          <select id="editRuolo" name="ruolo" class="border p-2 rounded w-full">
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm">Certificato LNP</label>
+          <select id="editCert" name="certificato_lnp" class="border p-2 rounded w-full">
+            <option value="true">✅ Sì</option>
+            <option value="false">❌ No</option>
+          </select>
+        </div>
+        <div class="flex gap-2 mt-4">
+          <button type="button" onclick="closeModal()" class="bg-gray-400 px-3 py-1 rounded">Chiudi</button>
+          <button type="submit" class="bg-green-600 text-white px-3 py-1 rounded">💾 Salva</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODALE PARTITE -->
+  <div id="modalPartite" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+    <div class="bg-white p-6 rounded shadow w-full max-w-3xl">
+      <h3 class="text-xl font-bold mb-3">📋 Partite Utente</h3>
+      <div id="partiteUtente"></div>
+      <div class="mt-4 text-right">
+        <button onclick="closeModalPartite()" class="bg-gray-400 px-3 py-1 rounded">Chiudi</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     let utenti = [];
@@ -72,6 +127,7 @@
               <th class="p-2 border">Email</th>
               <th class="p-2 border">Società</th>
               <th class="p-2 border">Certificato LNP</th>
+              <th class="p-2 border">Azioni</th>
             </tr>
           </thead>
           <tbody>
@@ -82,6 +138,11 @@
                 <td class="p-2 border">${u.email}</td>
                 <td class="p-2 border">${u.club_appartenenza || "-"}</td>
                 <td class="p-2 border">${u.certificato_lnp ? "✅ Sì" : "❌ No"}</td>
+                <td class="p-2 border flex gap-2">
+                  <button onclick="editUtente(${u.id})" class="bg-yellow-500 text-white px-2 py-1 rounded">✏️</button>
+                  <button onclick="deleteUtente(${u.id})" class="bg-red-600 text-white px-2 py-1 rounded">🗑️</button>
+                  <button onclick="viewPartite(${u.id})" class="bg-blue-600 text-white px-2 py-1 rounded">📋</button>
+                </td>
               </tr>
             `).join("")}
           </tbody>
@@ -89,12 +150,90 @@
       `;
     }
 
+    // === MODIFICA UTENTE ===
+    async function editUtente(id) {
+      const res = await fetch(`/admin/users/${id}`);
+      const u = await res.json();
+      document.getElementById("editId").value = u.id;
+      document.getElementById("editNome").value = u.nome;
+      document.getElementById("editCognome").value = u.cognome;
+      document.getElementById("editEmail").value = u.email;
+      document.getElementById("editClub").value = u.club_appartenenza || "";
+      document.getElementById("editRuolo").value = u.ruolo;
+      document.getElementById("editCert").value = u.certificato_lnp ? "true" : "false";
+      document.getElementById("modalEdit").classList.remove("hidden");
+    }
+
+    function closeModal() {
+      document.getElementById("modalEdit").classList.add("hidden");
+    }
+
+    document.getElementById("editForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = Object.fromEntries(new FormData(e.target).entries());
+      const res = await fetch('/admin/users/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      alert(await res.text());
+      closeModal();
+      loadUtenti();
+    });
+
+    // === ELIMINA UTENTE ===
+    async function deleteUtente(id) {
+      if (!confirm("Sei sicuro di voler eliminare questo utente?")) return;
+      const res = await fetch(`/admin/users/delete/${id}`, { method: 'DELETE' });
+      alert(await res.text());
+      loadUtenti();
+    }
+
+    // === PARTITE UTENTE ===
+    async function viewPartite(id) {
+      const res = await fetch(`/admin/users/${id}/partite`);
+      const partite = await res.json();
+      let html = "";
+      if (partite.length === 0) {
+        html = "<p class='text-gray-500'>Nessuna partita trovata.</p>";
+      } else {
+        html = `
+          <table class="w-full border text-sm">
+            <thead class="bg-gray-200">
+              <tr>
+                <th class="p-2 border">Campionato</th>
+                <th class="p-2 border">Gara</th>
+                <th class="p-2 border">Squadre</th>
+                <th class="p-2 border">Data</th>
+                <th class="p-2 border">Ruolo</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${partite.map(p => `
+                <tr class="border-b">
+                  <td class="p-2 border">${p.campionato}</td>
+                  <td class="p-2 border">${p.numero_gara || "-"}</td>
+                  <td class="p-2 border">${p.squadra_a} vs ${p.squadra_b}</td>
+                  <td class="p-2 border">${p.data_gara.slice(0,10)}</td>
+                  <td class="p-2 border">${p.ruolo}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        `;
+      }
+      document.getElementById("partiteUtente").innerHTML = html;
+      document.getElementById("modalPartite").classList.remove("hidden");
+    }
+
+    function closeModalPartite() {
+      document.getElementById("modalPartite").classList.add("hidden");
+    }
+
+    // === STAMPA ===
     function stampaUtenti() {
       let lista = [...utenti];
-
-      // Ordina per società
       lista.sort((a, b) => (a.club_appartenenza || "").localeCompare(b.club_appartenenza || ""));
-
       let contenuto = `
         <h1 style="text-align:center;">📋 Elenco Utenti</h1>
         <table border="1" cellspacing="0" cellpadding="5" style="width:100%; border-collapse:collapse;">
@@ -118,7 +257,6 @@
           </tbody>
         </table>
       `;
-
       const w = window.open("", "_blank");
       w.document.write(contenuto);
       w.print();
@@ -131,7 +269,6 @@
 
     loadUtenti();
   </script>
-
 </body>
 </html>
 

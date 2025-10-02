@@ -274,22 +274,20 @@ app.post('/partite/registrati', requireLogin, async (req, res) => {
 // Fine gara
 app.post('/partite/finegara', requireLogin, uploadFiles.fields([
   { name: 'file_stat', maxCount: 1 },
-  { name: 'pdf_stat', maxCount: 1 },
-  { name: 'foto_stat', maxCount: 1 }
+  { name: 'pdf_stat', maxCount: 1 }
 ]), async (req, res) => {
   const { partita_id, risultato_finale, note } = req.body;
   if (!partita_id) return res.status(400).send("⚠️ ID partita mancante.");
 
   const fileStat = req.files['file_stat'] ? req.files['file_stat'][0].filename : null;
   const pdfStat  = req.files['pdf_stat'] ? req.files['pdf_stat'][0].filename : null;
-  const fotoStat = req.files['foto_stat'] ? req.files['foto_stat'][0].filename : null;
 
   try {
     await db.query(
       `UPDATE iscrizioni 
-       SET note=$1, file_statistico=$2, pdf_statistiche=$3, foto_statistiche=$4, inviato=TRUE
-       WHERE partita_id=$5 AND user_id=$6`,
-      [note || null, fileStat, pdfStat, fotoStat, partita_id, req.session.userId]
+       SET note=$1, file_statistico=$2, pdf_statistiche=$3, inviato=TRUE
+       WHERE partita_id=$4 AND user_id=$5`,
+      [note || null, fileStat, pdfStat, partita_id, req.session.userId]
     );
 
     const ruoloResult = await db.query(
@@ -315,7 +313,7 @@ app.get('/mie-iscrizioni', requireLogin, async (req, res) => {
   try {
     const sql = `
       SELECT i.partita_id, i.ruolo, i.orario_arrivo, i.note, 
-             i.file_statistico, i.pdf_statistiche, i.foto_statistiche
+             i.file_statistico, i.pdf_statistiche
       FROM iscrizioni i
       WHERE i.user_id=$1`;
     const result = await db.query(sql, [req.session.userId]);
@@ -338,7 +336,7 @@ app.get('/report-partite', requireAdmin, async (req, res) => {
              p.squadra_a, p.squadra_b, p.campo_gioco, p.orario, p.stato, p.risultato_finale, p.note_admin,
              u.id AS user_id, u.nome, u.cognome, u.email,
              i.id AS iscrizione_id, i.ruolo, i.orario_arrivo, i.note, 
-             i.file_statistico, i.pdf_statistiche, i.foto_statistiche, i.inviato
+             i.file_statistico, i.pdf_statistiche, i.inviato
       FROM partite p
       LEFT JOIN iscrizioni i ON p.id = i.partita_id
       LEFT JOIN users u ON i.user_id = u.id
@@ -431,14 +429,13 @@ app.post('/admin/upload-csv', requireAdmin, uploadFiles.single('partite_csv'), a
 // ADMIN UTENTI    //
 /////////////////////
 
-
-
-// Lista utenti
+// Lista utenti (completa)
 app.get('/admin/users', requireAdmin, async (req, res) => {
   try {
     const sql = `
       SELECT id, nome, cognome, email, ruolo,
-             club_appartenenza, sede_corso, data_corso, certificato_lnp
+             club_appartenenza, sede_corso, data_corso, certificato_lnp,
+             data_nascita, luogo_nascita, indirizzo_residenza, paese, cap, provincia, anni_esperienza
       FROM users
       ORDER BY cognome, nome
     `;
@@ -558,6 +555,7 @@ app.post('/admin/create-missing-fields', requireAdmin, async (req, res) => {
   }
 });
 
+// Admin: stampa elenco utenti
 app.get('/admin/users/print', requireAdmin, async (req, res) => {
   const filter = req.query.filter || "all";
 
@@ -589,5 +587,4 @@ app.get('/admin/users/print', requireAdmin, async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server avviato su http://localhost:${PORT}`);
 });
-
 

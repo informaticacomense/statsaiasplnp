@@ -119,17 +119,19 @@
       const user = await res.json();
 
       // Popola i campi
-      Object.keys(user).forEach(k => {
-        if (document.getElementById(k)) {
-          if (k === "data_corso" || k === "data_nascita") {
-            document.getElementById(k).value = user[k] ? user[k].split("T")[0] : "";
-          } else if (k === "certificato_lnp") {
-            document.getElementById(k).value = user[k] ? "true" : "false";
-          } else {
-            document.getElementById(k).value = user[k] || "";
-          }
+      document.getElementById("id").value = user.id;
+      for (const k in user) {
+        const el = document.getElementById(k);
+        if (!el) continue;
+
+        if (k === "data_corso" || k === "data_nascita") {
+          el.value = user[k] ? user[k].split("T")[0] : "";
+        } else if (k === "certificato_lnp") {
+          el.value = user[k] ? "true" : "false";
+        } else {
+          el.value = user[k] || "";
         }
-      });
+      }
     }
 
     document.getElementById("userForm").addEventListener("submit", async (e) => {

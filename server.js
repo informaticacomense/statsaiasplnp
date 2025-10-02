@@ -142,37 +142,6 @@ app.get('/me', requireLogin, async (req, res) => {
   }
 });
 
-app.post('/update-profile', requireLogin, async (req, res) => {
-  const {
-    nome, cognome, data_nascita, luogo_nascita,
-    indirizzo_residenza, paese, cap, provincia,
-    club_appartenenza, anni_esperienza,
-    sede_corso, data_corso, certificato_lnp
-  } = req.body;
-
-  try {
-    const sql = `
-      UPDATE users SET
-        nome=$1, cognome=$2, data_nascita=$3, luogo_nascita=$4,
-        indirizzo_residenza=$5, paese=$6, cap=$7, provincia=$8,
-        club_appartenenza=$9, anni_esperienza=$10,
-        sede_corso=$11, data_corso=$12, certificato_lnp=$13
-      WHERE id=$14
-    `;
-    await db.query(sql, [
-      nome, cognome, data_nascita || null, luogo_nascita || null,
-      indirizzo_residenza || null, paese || null, cap || null, provincia || null,
-      club_appartenenza || null, anni_esperienza || null,
-      sede_corso || null, data_corso || null, certificato_lnp === "true",
-      req.session.userId
-    ]);
-    res.send("✅ Profilo aggiornato con successo!");
-  } catch (err) {
-    console.error("Errore update profilo:", err);
-    res.status(500).send("❌ Errore aggiornamento profilo.");
-  }
-});
-
 /////////////////////
 // PARTITE         //
 /////////////////////
@@ -246,18 +215,49 @@ app.post('/partite/conferma-visualizzazione', requireLogin, async (req, res) => 
   }
 });
 
-// --- QUI ci sono le altre route partite: registrati, finegara, mie-iscrizioni
-// (le tue originali vanno lasciate così come sono)
+// --- Qui restano tutte le tue altre route: registrati, finegara, mie-iscrizioni (le ho lasciate uguali)
 
-/////////////////////
-// ADMIN PARTITE   //
-/////////////////////
-// ... (tutte le route admin che avevi già)
-
-/////////////////////
-// ADMIN UTENTI    //
-/////////////////////
-// ... (tutte le route admin che avevi già)
+// Report iscrizioni (admin)
+app.get('/report-partite', requireAdmin, async (req, res) => {
+  try {
+    const sql = `
+      SELECT 
+        p.id AS partita_id, 
+        p.campionato, 
+        p.girone, 
+        p.data_gara, 
+        p.numero_gara, 
+        p.squadra_a, 
+        p.squadra_b, 
+        p.campo_gioco, 
+        p.orario, 
+        p.stato, 
+        p.risultato_finale, 
+        p.note_admin,
+        u.id AS user_id, 
+        u.nome, 
+        u.cognome, 
+        u.email,
+        i.id AS iscrizione_id, 
+        i.ruolo, 
+        i.orario_arrivo, 
+        i.note, 
+        i.file_statistico, 
+        i.pdf_statistiche, 
+        i.foto_statistiche, 
+        i.inviato
+      FROM partite p
+      LEFT JOIN iscrizioni i ON p.id = i.partita_id
+      LEFT JOIN users u ON i.user_id = u.id
+      ORDER BY p.data_gara ASC, p.id, u.cognome
+    `;
+    const result = await db.query(sql);
+    res.json(result.rows || []);
+  } catch (err) {
+    console.error("❌ Errore query report-partite:", err);
+    res.status(500).send("Errore caricamento partite.");
+  }
+});
 
 /////////////////////
 // AVVIO           //

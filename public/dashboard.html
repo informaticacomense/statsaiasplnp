@@ -120,6 +120,7 @@
           <span id="cpMsg" class="text-sm text-gray-600"></span>
         </div>
       </form>
+      <div id="successMsg" class="hidden mt-3 text-green-600 font-semibold"></div>
     </section>
 
     <!-- ELENCO PARTITE -->
@@ -292,7 +293,10 @@
     document.getElementById("btnCrea").addEventListener("click", async e => {
       e.preventDefault();
       const msg = document.getElementById("cpMsg");
+      const successMsg = document.getElementById("successMsg");
       msg.textContent = "⏳ Salvataggio...";
+      successMsg.classList.add("hidden");
+
       const payload = {
         campionato: document.getElementById("cpCampionato").value,
         girone: document.getElementById("cpGirone").value,
@@ -306,13 +310,24 @@
         risultato_finale: "",
         note_admin: document.getElementById("cpNote").value
       };
+
       const res = await fetch('/partite/create', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify(payload)
       });
+
       msg.textContent = "";
-      alert(await res.text());
+      const text = await res.text();
+      if (res.ok) {
+        successMsg.textContent = "✅ Partita creata con successo";
+        successMsg.classList.remove("hidden");
+      } else {
+        successMsg.textContent = "❌ Errore: " + text;
+        successMsg.classList.remove("hidden");
+        successMsg.classList.add("text-red-600");
+      }
+
       document.getElementById("createPartitaForm").reset();
       updateGironiCreate();
       loadPartite();
@@ -336,4 +351,5 @@
   </script>
 </body>
 </html>
+
 

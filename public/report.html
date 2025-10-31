@@ -15,14 +15,14 @@
   <main class="p-6 max-w-6xl mx-auto">
     <h2 class="text-2xl font-bold mb-4">📂 Filtra Partite</h2>
 
-    <div class="flex gap-4 mb-6">
-      <select id="filterCampionato" class="border p-2 rounded">
+    <div class="flex flex-wrap gap-4 mb-6">
+      <select id="filterCampionato" class="border p-2 rounded min-w-[180px]">
         <option value="">Tutti i Campionati</option>
       </select>
-      <select id="filterGirone" class="border p-2 rounded">
+      <select id="filterGirone" class="border p-2 rounded min-w-[140px]">
         <option value="">Tutti i Gironi</option>
       </select>
-      <select id="filterStato" class="border p-2 rounded">
+      <select id="filterStato" class="border p-2 rounded min-w-[160px]">
         <option value="">Tutti gli Stati</option>
         <option value="in_corso">In Corso</option>
         <option value="terminata">Terminate</option>
@@ -34,36 +34,77 @@
       </label>
     </div>
 
-    <div id="reportContainer" class="space-y-6"></div>
+    <div id="reportContainer" class="space-y-6 text-gray-600">
+      <p class="italic">⏳ Caricamento report…</p>
+    </div>
   </main>
 
   <script>
     let allPartite = [];
 
+    async function safeJson(res) {
+      try { return await res.json(); } catch { return null; }
+    }
+
     async function loadReport() {
-      const res = await fetch('/admin/report-advanced');
-      if (!res.ok) {
-        document.getElementById("reportContainer").innerHTML = "<p class='text-red-600'>Errore caricamento report.</p>";
+      const container = document.getElementById("reportContainer");
+      container.innerHTML = "<p class='text-blue-600'>⏳ Caricamento report…</p>";
+
+      // 1) Primo tentativo
+      let res = await fetch('/admin/report-advanced').catch(() => null);
+      let data = null;
+
+      if (res && res.ok) {
+        data = await safeJson(res);
+      } else {
+        // 2) Fallback
+        let res2 = await fetch('/report-partite').catch(() => null);
+        if (res2 && res2.ok) {
+          data = await safeJson(res2);
+        } else {
+          const statusText = res ? `${res.status} ${res.statusText}` : (res2 ? `${res2.status} ${res2.statusText}` : 'nessuna risposta');
+          container.innerHTML = `<p class='text-red-600'>Errore caricamento report (${statusText}).</p>`;
+          return;
+        }
+      }
+
+      if (!Array.isArray(data)) {
+        container.innerHTML = "<p class='text-red-600'>Formato dati non valido (atteso array).</p>";
         return;
       }
-      allPartite = await res.json();
+
+      allPartite = data;
       populateFilters();
       renderReport();
     }
 
     function populateFilters() {
-      const campionati = [...new Set(allPartite.map(p => p.campionato).filter(Boolean))];
-      const gironi = [...new Set(allPartite.map(p => p.girone).filter(Boolean))];
-
       const campSel = document.getElementById("filterCampionato");
       const girSel = document.getElementById("filterGirone");
 
-      campionati.forEach(c => {
-        campSel.innerHTML += `<option value="${c}">${c}</option>`;
-      });
-      gironi.forEach(g => {
-        girSel.innerHTML += `<option value="${g}">${g}</option>`;
-      });
+      // reset mantenendo la prima option
+      campSel.innerHTML = `<option value="">Tutti i Campionati</option>`;
+      girSel.innerHTML = `<option value="">Tutti i Gironi</option>`;
+
+      const campionati = [...new Set(allPartite.map(p => p.campionato).filter(Boolean))].sort();
+      const gironi = [...new Set(allPartite.map(p => p.girone).filter(Boolean))].sort();
+
+      let campOptions = "";
+      let girOptions = "";
+
+      campionati.forEach(c => { campOptions += `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`; });
+      gironi.forEach(g => { girOptions += `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`; });
+
+      campSel.insertAdjacentHTML('beforeend', campOptions);
+      girSel.insertAdjacentHTML('beforeend', girOptions);
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
     }
 
     function renderReport() {
@@ -73,13 +114,12 @@
       const mancaFile = document.getElementById("filterMancanti").checked;
 
       const container = document.getElementById("reportContainer");
-      container.innerHTML = "";
-
       let filtered = allPartite.filter(p => {
         if (camp && p.campionato !== camp) return false;
         if (gir && p.girone !== gir) return false;
         if (stato && p.stato !== stato) return false;
-        if (mancaFile && !p.file_statistico) return false;
+        // ✅ FIX: se spuntato, mostra SOLO chi NON ha file_statistico
+        if (mancaFile && p.file_statistico) return false;
         return true;
       });
 
@@ -88,22 +128,38 @@
         return;
       }
 
+      let html = "";
       filtered.forEach(p => {
-        container.innerHTML += `
+        const campionato = escapeHtml(p.campionato || "-");
+        const squadraA = escapeHtml(p.squadra_a || "-");
+        const squadraB = escapeHtml(p.squadra_b || "-");
+        const numeroGara = escapeHtml(p.numero_gara || "-");
+        const girone = escapeHtml(p.girone || "-");
+        const campo = escapeHtml(p.campo_gioco || "-");
+        const orario = escapeHtml(p.orario || "-");
+        const statoTxt = escapeHtml(p.stato || "-");
+        const risultato = p.risultato_finale ? ` | 🏆 Risultato: ${escapeHtml(p.risultato_finale)}` : "";
+
+        const linkFiba = p.file_statistico ? `<a href="/uploads/${encodeURIComponent(p.file_statistico)}" target="_blank" class="text-blue-600 underline mr-2">📑 FIBA Live Stats</a>` : "";
+        const linkPdf = p.pdf_statistiche ? `<a href="/uploads/${encodeURIComponent(p.pdf_statistiche)}" target="_blank" class="text-blue-600 underline mr-2">📊 PDF</a>` : "";
+        const linkFoto = p.foto_statistiche ? `<a href="/uploads/${encodeURIComponent(p.foto_statistiche)}" target="_blank" class="text-blue-600 underline">📷 Referto</a>` : "";
+
+        html += `
           <div class="bg-white p-4 rounded shadow">
-            <h3 class="text-lg font-bold">${p.campionato} - ${p.squadra_a} vs ${p.squadra_b}</h3>
+            <h3 class="text-lg font-bold">${campionato} - ${squadraA} vs ${squadraB}</h3>
             <p class="text-sm text-gray-600">
-              Gara ${p.numero_gara} | Girone ${p.girone || '-'} | Campo: ${p.campo_gioco || '-'} | Orario: ${p.orario || '-'}
+              Gara ${numeroGara} | Girone ${girone} | Campo: ${campo} | Orario: ${orario}
             </p>
-            <p class="mt-1">📌 Stato: <span class="font-semibold">${p.stato}</span> ${p.risultato_finale ? `| 🏆 Risultato: ${p.risultato_finale}` : ""}</p>
+            <p class="mt-1">📌 Stato: <span class="font-semibold">${statoTxt}</span>${risultato}</p>
             <div class="mt-2">
-              ${p.file_statistico ? `<a href="/uploads/${p.file_statistico}" target="_blank" class="text-blue-600 underline mr-2">📑 FIBA Live Stats</a>` : ""}
-              ${p.pdf_statistiche ? `<a href="/uploads/${p.pdf_statistiche}" target="_blank" class="text-blue-600 underline mr-2">📊 PDF</a>` : ""}
-              ${p.foto_statistiche ? `<a href="/uploads/${p.foto_statistiche}" target="_blank" class="text-blue-600 underline">📷 Referto</a>` : ""}
+              ${linkFiba}${linkPdf}${linkFoto}
+              ${!p.file_statistico ? `<span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">Manca FIBA</span>` : ""}
             </div>
           </div>
         `;
       });
+
+      container.innerHTML = html;
     }
 
     ["filterCampionato", "filterGirone", "filterStato", "filterMancanti"].forEach(id => {
@@ -115,6 +171,7 @@
       window.location.href = "/";
     }
 
+    // Avvio
     loadReport();
   </script>
 </body>

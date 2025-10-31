@@ -62,6 +62,13 @@
           <option value="terminata">Terminate</option>
         </select>
       </div>
+
+      <!-- 🔍 Nome squadra -->
+      <div>
+        <label class="block text-sm mb-1">Cerca per squadra</label>
+        <input type="text" id="filterSquadra" placeholder="Inserisci nome squadra" class="border p-2 rounded min-w-[200px]" onkeypress="if(event.key==='Enter'){event.preventDefault();loadFilteredPartite();}">
+      </div>
+
       <div class="flex gap-2">
         <button type="button" onclick="loadFilteredPartite()" class="bg-blue-600 text-white px-4 py-2 rounded">🔍 Filtra</button>
         <button type="button" onclick="resetFilters()" class="bg-gray-200 text-gray-700 px-3 py-2 rounded">♻️ Reset</button>
@@ -95,12 +102,14 @@
       const gir = document.getElementById("filterGirone").value;
       const data = document.getElementById("filterData").value;
       const stato = document.getElementById("filterRevision").value;
+      const squadra = document.getElementById("filterSquadra").value.trim();
 
       const params = new URLSearchParams();
       if (camp) params.append("campionato", camp);
       if (gir) params.append("girone", gir);
       if (data) params.append("data_gara", data);
       if (stato) params.append("stato", stato);
+      if (squadra) params.append("squadra", squadra);
 
       const container = document.getElementById("partiteContainer");
       container.innerHTML = "<p class='text-blue-600'>⏳ Caricamento partite in corso...</p>";
@@ -117,7 +126,17 @@
         return;
       }
 
-      allPartite = dati;
+      // Se filtro squadra impostato, applica anche lato client
+      let filtered = dati;
+      if (squadra) {
+        const q = squadra.toLowerCase();
+        filtered = dati.filter(p =>
+          (p.squadra_a && p.squadra_a.toLowerCase().includes(q)) ||
+          (p.squadra_b && p.squadra_b.toLowerCase().includes(q))
+        );
+      }
+
+      allPartite = filtered;
       renderPartite();
     }
 
@@ -263,6 +282,7 @@
       document.getElementById("filterGirone").value="";
       document.getElementById("filterData").value="";
       document.getElementById("filterRevision").value="";
+      document.getElementById("filterSquadra").value="";
       document.getElementById("partiteContainer").innerHTML = "<p class='text-gray-600 italic'>💡 Seleziona un filtro per visualizzare le partite.</p>";
     }
   </script>

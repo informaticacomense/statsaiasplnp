@@ -62,13 +62,9 @@
           <option value="terminata">Terminate</option>
         </select>
       </div>
-      <div>
-        <label class="block text-sm mb-1">Solo future</label>
-        <input type="checkbox" id="filterFuture" class="w-5 h-5" />
-      </div>
       <div class="flex gap-2">
-        <button onclick="applyFilters()" class="bg-blue-600 text-white px-4 py-2 rounded">🔍 Filtra</button>
-        <button onclick="resetFilters()" class="bg-gray-200 text-gray-700 px-3 py-2 rounded">♻️ Reset</button>
+        <button type="button" onclick="loadFilteredPartite()" class="bg-blue-600 text-white px-4 py-2 rounded">🔍 Filtra</button>
+        <button type="button" onclick="resetFilters()" class="bg-gray-200 text-gray-700 px-3 py-2 rounded">♻️ Reset</button>
       </div>
     </div>
   </section>
@@ -76,13 +72,13 @@
   <!-- ELENCO PARTITE -->
   <main class="p-6 max-w-6xl mx-auto">
     <h2 class="text-2xl font-bold mb-4">📋 Elenco Partite e Iscritti</h2>
-    <div id="partiteContainer" class="space-y-8"></div>
+    <div id="partiteContainer" class="space-y-8 text-gray-600 italic">
+      <p>💡 Seleziona un filtro per visualizzare le partite.</p>
+    </div>
   </main>
 
   <script>
     let allPartite = [];
-    let currentPage = 1;
-    const perPage = 20;
 
     function formatData(isoDate, orario) {
       if (!isoDate) return "-";
@@ -93,53 +89,44 @@
       return `${gg}/${mm}/${yyyy} ${orario || ''}`;
     }
 
-    async function loadPartite() {
-      const res = await fetch('/report-partite');
-      if (!res.ok) {
-        document.getElementById("partiteContainer").innerHTML = "<p class='text-red-600'>Errore nel caricamento partite.</p>";
-        return;
-      }
-      const dati = await res.json();
-      allPartite = dati;
-      renderPartite();
-    }
-
-    function filterData(partite) {
+    // ✅ Caricamento SOLO filtrato
+    async function loadFilteredPartite() {
       const camp = document.getElementById("filterCampionato").value;
       const gir = document.getElementById("filterGirone").value;
       const data = document.getElementById("filterData").value;
       const stato = document.getElementById("filterRevision").value;
-      const future = document.getElementById("filterFuture").checked;
 
-      return partite.filter(p => {
-        if (camp && p.campionato !== camp) return false;
-        if (gir && p.girone !== gir) return false;
-        if (data && p.data_gara < data) return false;
-        if (stato) {
-          if (stato === "revisionata" && p.stato !== "revisionata") return false;
-          if (stato === "non_revisionate" && p.stato === "revisionata") return false;
-          if (stato !== "revisionata" && stato !== "non_revisionate" && p.stato !== stato) return false;
-        }
-        if (future) {
-          const today = new Date().toISOString().slice(0,10);
-          if (p.data_gara < today) return false;
-        }
-        return true;
-      });
+      const params = new URLSearchParams();
+      if (camp) params.append("campionato", camp);
+      if (gir) params.append("girone", gir);
+      if (data) params.append("data_gara", data);
+      if (stato) params.append("stato", stato);
+
+      const container = document.getElementById("partiteContainer");
+      container.innerHTML = "<p class='text-blue-600'>⏳ Caricamento partite in corso...</p>";
+
+      const res = await fetch(`/report-partite?${params.toString()}`);
+      if (!res.ok) {
+        container.innerHTML = "<p class='text-red-600'>Errore nel caricamento partite filtrate.</p>";
+        return;
+      }
+
+      const dati = await res.json();
+      if (dati.length === 0) {
+        container.innerHTML = "<p class='text-gray-500'>Nessuna partita trovata con questi filtri.</p>";
+        return;
+      }
+
+      allPartite = dati;
+      renderPartite();
     }
 
     function renderPartite() {
-      const dati = filterData(allPartite);
       const container = document.getElementById("partiteContainer");
       container.innerHTML = "";
 
-      const totalPages = Math.ceil(dati.length / perPage);
-      const start = (currentPage - 1) * perPage;
-      const end = start + perPage;
-      const pageData = dati.slice(start, end);
-
       const grouped = {};
-      pageData.forEach(r => {
+      allPartite.forEach(r => {
         if (!grouped[r.partita_id]) grouped[r.partita_id] = { info: r, iscritti: [] };
         if (r.user_id) grouped[r.partita_id].iscritti.push(r);
       });
@@ -177,19 +164,8 @@
         `;
       });
 
-      html += `
-        <div class="flex justify-center items-center gap-3 mt-6">
-          <button onclick="prevPage()" ${currentPage===1?'disabled class="opacity-50"':''} class="bg-gray-200 px-3 py-1 rounded">⬅️ Precedente</button>
-          <span>Pagina ${currentPage} di ${totalPages}</span>
-          <button onclick="nextPage(${totalPages})" ${currentPage===totalPages?'disabled class="opacity-50"':''} class="bg-gray-200 px-3 py-1 rounded">➡️ Successiva</button>
-        </div>
-      `;
-
       container.innerHTML = html;
     }
-
-    function prevPage() { if (currentPage > 1) { currentPage--; renderPartite(); } }
-    function nextPage(total) { if (currentPage < total) { currentPage++; renderPartite(); } }
 
     function toggleIscritti(id) {
       const div = document.getElementById(`iscritti-${id}`);
@@ -251,7 +227,7 @@
         body: JSON.stringify({ partita_id: partitaId, stato, note_admin })
       });
       alert(await res.text());
-      loadPartite();
+      loadFilteredPartite();
     }
 
     async function aggiornaRuolo(iscrizioneId, ruolo) {
@@ -261,14 +237,13 @@
         body: JSON.stringify({ iscrizione_id: iscrizioneId, ruolo })
       });
       alert(await res.text());
-      loadPartite();
+      loadFilteredPartite();
     }
 
     async function cancellaTutto() {
       if (!confirm("Sei sicuro di voler cancellare TUTTE le partite e iscrizioni?")) return;
       const res = await fetch('/admin/reset', { method: 'POST' });
       alert(await res.text());
-      loadPartite();
     }
 
     async function logout() {
@@ -281,24 +256,16 @@
       const formData = new FormData(e.target);
       const res = await fetch('/admin/upload-csv', { method: 'POST', body: formData });
       alert(await res.text());
-      loadPartite();
     });
 
-    function applyFilters(){ currentPage = 1; renderPartite(); }
     function resetFilters(){
       document.getElementById("filterCampionato").value="";
       document.getElementById("filterGirone").value="";
       document.getElementById("filterData").value="";
       document.getElementById("filterRevision").value="";
-      document.getElementById("filterFuture").checked=false;
-      currentPage = 1;
-      renderPartite();
+      document.getElementById("partiteContainer").innerHTML = "<p class='text-gray-600 italic'>💡 Seleziona un filtro per visualizzare le partite.</p>";
     }
-
-    loadPartite();
   </script>
 
 </body>
 </html>
-
-

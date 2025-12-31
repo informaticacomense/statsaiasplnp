@@ -61,6 +61,7 @@
             class="bg-blue-600 text-white px-4 py-2 rounded">
       Cerca
     </button>
+    
 
     <button onclick="resetFilters()"
             class="bg-gray-200 px-3 py-2 rounded">
@@ -167,8 +168,9 @@ function applyFilters(){
   let list = [...allPartite];
 
   if(filterRevision.value === "mie_revisionate"){
-    list = list.filter(miaRevisionataNonLetta);
-  }
+  list = list.filter(miaRevisionata);
+}
+
   if(filterCampionato.value){
     list = list.filter(p => p.campionato === filterCampionato.value);
   }
@@ -197,6 +199,14 @@ function resetFilters(){
   filterRevision.value = "";
   renderInitial();
 }
+
+  function miaRevisionata(p){
+  return (
+    p.stato === "revisionata" &&
+    iscrizioniUtente.some(i => i.partita_id === p.id)
+  );
+}
+
 
 /* ================= RENDER ================= */
 function renderList(list){

@@ -119,28 +119,9 @@ let allPartite = [];
 function normalizeVisualizzata(v){
   if(!v) return [];
   if(Array.isArray(v)) return v.map(Number);
-  if(typeof v === "string"){
-    try {
-      const arr = JSON.parse(v);
-      return Array.isArray(arr) ? arr.map(Number) : [];
-    } catch {
-      return [];
-    }
-  }
-  return [];
+  try { return JSON.parse(v).map(Number); } catch { return []; }
 }
-
-function formatDate(d){
-  return new Date(d).toLocaleDateString("it-IT");
-}
-
-function diffDays(d){
-  const a = new Date(d);
-  const b = new Date();
-  a.setHours(0,0,0,0);
-  b.setHours(0,0,0,0);
-  return Math.abs((a - b) / 86400000);
-}
+function formatDate(d){ return new Date(d).toLocaleDateString("it-IT"); }
 
 /* ================== LOAD ================== */
 async function loadUser(){
@@ -148,193 +129,140 @@ async function loadUser(){
   if(!res.ok) return location.href="/";
 
   currentUser = await res.json();
-  userName.innerText = currentUser.nome + " " + currentUser.cognome;
-  if(currentUser.ruolo === "admin") adminLink.classList.remove("hidden");
+  userName.innerText = currentUser.nome+" "+currentUser.cognome;
+  if(currentUser.ruolo==="admin") adminLink.classList.remove("hidden");
 
   iscrizioniUtente = await (await fetch("/mie-iscrizioni")).json();
   allPartite = await (await fetch("/partite")).json();
-
   renderInitial();
 }
 
 /* ================== REVISIONI ================== */
 function miaRevisionataNonLetta(p){
-  return (
-    p.stato === "revisionata" &&
-    iscrizioniUtente.some(i => i.partita_id === p.id) &&
-    !normalizeVisualizzata(p.visualizzata_da).includes(Number(currentUser.id))
-  );
+  return p.stato==="revisionata" &&
+    iscrizioniUtente.some(i=>i.partita_id===p.id) &&
+    !normalizeVisualizzata(p.visualizzata_da).includes(currentUser.id);
 }
 
 /* ================== APERTURA ================== */
 function renderInitial(){
-  const mieRev = allPartite.filter(miaRevisionataNonLetta);
-  revisionNotice.classList.toggle("hidden", mieRev.length === 0);
-
-  if(mieRev.length){
-    renderList(mieRev);
-  } else {
-    partiteContainer.innerHTML =
-      "<p class='text-gray-500'>Nessuna revisione da confermare. Usa i filtri per cercare le partite.</p>";
-  }
+  const rev = allPartite.filter(miaRevisionataNonLetta);
+  revisionNotice.classList.toggle("hidden", rev.length===0);
+  rev.length ? renderList(rev)
+             : partiteContainer.innerHTML="<p class='text-gray-500'>Usa i filtri per cercare le partite.</p>";
 }
 
 /* ================== FILTRI ================== */
 function applyFilters(){
-  let list = [...allPartite];
-
-  if(filterRevision.value === "mie_revisionate"){
-    list = list.filter(miaRevisionataNonLetta);
-  }
-  if(filterCampionato.value){
-    list = list.filter(p => p.campionato === filterCampionato.value);
-  }
-  if(filterGirone.value){
-    list = list.filter(p => p.girone === filterGirone.value);
-  }
-  if(filterData.value){
-    list = list.filter(p => p.data_gara >= filterData.value);
-  }
+  let list=[...allPartite];
+  if(filterRevision.value==="mie_revisionate") list=list.filter(miaRevisionataNonLetta);
+  if(filterCampionato.value) list=list.filter(p=>p.campionato===filterCampionato.value);
+  if(filterGirone.value) list=list.filter(p=>p.girone===filterGirone.value);
+  if(filterData.value) list=list.filter(p=>p.data_gara>=filterData.value);
   if(filterSquadra.value){
-    const q = filterSquadra.value.toLowerCase();
-    list = list.filter(p =>
-      p.squadra_a.toLowerCase().includes(q) ||
-      p.squadra_b.toLowerCase().includes(q)
-    );
-    list.sort((a,b) => diffDays(a.data_gara) - diffDays(b.data_gara));
+    const q=filterSquadra.value.toLowerCase();
+    list=list.filter(p=>p.squadra_a.toLowerCase().includes(q)||p.squadra_b.toLowerCase().includes(q));
   }
-
   renderList(list);
 }
-
 function resetFilters(){
-  filterCampionato.value = "";
-  filterGirone.value = "";
-  filterData.value = "";
-  filterSquadra.value = "";
-  filterRevision.value = "";
+  filterCampionato.value=filterGirone.value=filterData.value=filterSquadra.value=filterRevision.value="";
   renderInitial();
 }
 
 /* ================== RENDER ================== */
 function renderList(list){
-  partiteContainer.innerHTML = "";
+  partiteContainer.innerHTML="";
   if(!list.length){
-    partiteContainer.innerHTML = "<p class='text-gray-500'>Nessuna partita</p>";
+    partiteContainer.innerHTML="<p class='text-gray-500'>Nessuna partita</p>";
     return;
   }
   list.forEach(renderCard);
 }
 
 function renderCard(p){
-  const iscr = iscrizioniUtente.find(i => i.partita_id === p.id);
-
-  let html = `
-  <div class="border p-4 rounded ${miaRevisionataNonLetta(p) ? 'bg-red-50 border-red-600' : ''}">
+  const iscr=iscrizioniUtente.find(i=>i.partita_id===p.id);
+  let html=`
+  <div class="border p-4 rounded ${miaRevisionataNonLetta(p)?'bg-red-50 border-red-600':''}">
     <h3 class="font-bold">${p.squadra_a} vs ${p.squadra_b}</h3>
-    <p>${formatDate(p.data_gara)} ore ${p.orario || "-"}</p>
-    <p>Stato: <b>${p.stato}</b>
-      ${p.risultato_finale ? ` | Risultato: <b>${p.risultato_finale}</b>` : ""}
-    </p>`;
+    <p>${formatDate(p.data_gara)} ore ${p.orario||"-"}</p>
+    <p>Stato: <b>${p.stato}</b>${p.risultato_finale?` | <b>${p.risultato_finale}</b>`:""}</p>`;
 
   if(miaRevisionataNonLetta(p)){
-    html += `
+    html+=`
     <div class="bg-yellow-100 p-3 mt-2 rounded">
       <p class="font-semibold">Revisione Admin</p>
-      <p>${p.note_admin || ""}</p>
+      <p>${p.note_admin||""}</p>
       <button type="button"
         onclick="this.disabled=true; confermaVisualizzazione(${p.id})"
-        class="mt-2 bg-orange-600 text-white px-3 py-1 rounded disabled:opacity-50">
+        class="mt-2 bg-orange-600 text-white px-3 py-1 rounded">
         Conferma lettura
       </button>
     </div>`;
   }
 
   if(!iscr){
-    html += `
-    <button onclick="iscriviti(${p.id})"
+    html+=`
+    <button onclick="toggleIscr(${p.id})"
       class="mt-2 bg-blue-600 text-white px-3 py-1 rounded">
       Registrati
-    </button>`;
+    </button>
+
+    <div id="iscr-${p.id}" class="hidden mt-2 border p-3 rounded bg-gray-50">
+      <label class="block text-sm">Ruolo</label>
+      <select id="ruolo-${p.id}" class="border p-2 rounded w-full mb-2">
+        <option value="caller">Caller</option>
+        <option value="statistician">Statistician</option>
+        <option value="standby">Standby</option>
+      </select>
+
+      <label class="block text-sm">Orario arrivo</label>
+      <input type="time" id="orario-${p.id}" class="border p-2 rounded w-full mb-2">
+
+      <button onclick="iscriviti(${p.id})"
+        class="bg-green-600 text-white px-3 py-1 rounded">
+        Conferma iscrizione
+      </button>
+    </div>`;
   } else {
-    html += `<p class="mt-2 text-green-700">Iscritto come ${iscr.ruolo}</p>`;
-
-    if(iscr.ruolo === "caller"){
-      html += `
-      <input id="ris-${p.id}" class="border p-2 w-full mt-2" placeholder="Risultato finale">
-      <textarea id="note-${p.id}" class="border p-2 w-full mt-2" placeholder="Note"></textarea>
-      <button onclick="fineCaller(${p.id})"
-        class="bg-purple-600 text-white px-3 py-1 rounded mt-2">
-        Termina gara
-      </button>`;
-    }
-
-    if(iscr.ruolo === "statistician"){
-      html += `
-      <label class="block mt-2">FILE FLS</label>
-      <input type="file" id="fls-${p.id}">
-      <label class="block mt-2">PDF TABELLINO</label>
-      <input type="file" id="pdf-${p.id}">
-      <button onclick="fineStat(${p.id})"
-        class="bg-purple-600 text-white px-3 py-1 rounded mt-2">
-        Carica file
-      </button>`;
-    }
+    html+=`<p class="mt-2 text-green-700">Iscritto come ${iscr.ruolo}</p>`;
   }
 
-  html += "</div>";
-  partiteContainer.innerHTML += html;
+  html+="</div>";
+  partiteContainer.innerHTML+=html;
 }
 
 /* ================== AZIONI ================== */
-async function confermaVisualizzazione(id){
-  await fetch("/partite/conferma-visualizzazione",{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({ partita_id:id })
-  });
-  loadUser();
+function toggleIscr(id){
+  document.getElementById(`iscr-${id}`).classList.toggle("hidden");
 }
 
 async function iscriviti(id){
   await fetch("/partite/registrati",{
     method:"POST",
-    headers:{ "Content-Type":"application/json" },
+    headers:{"Content-Type":"application/json"},
     body:JSON.stringify({
       partita_id:id,
-      ruolo:"caller",
-      orario_arrivo:"00:00"
+      ruolo:document.getElementById(`ruolo-${id}`).value,
+      orario_arrivo:document.getElementById(`orario-${id}`).value
     })
   });
   loadUser();
 }
 
-async function fineCaller(id){
-  await fetch("/partite/finegara",{
+async function confermaVisualizzazione(id){
+  await fetch("/partite/conferma-visualizzazione",{
     method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({
-      partita_id:id,
-      risultato_finale:document.getElementById(`ris-${id}`).value,
-      note:document.getElementById(`note-${id}`).value
-    })
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({partita_id:id})
   });
-  loadUser();
-}
-
-async function fineStat(id){
-  const fd = new FormData();
-  fd.append("partita_id", id);
-  fd.append("file_stat", document.getElementById(`fls-${id}`).files[0]);
-  fd.append("pdf_stat", document.getElementById(`pdf-${id}`).files[0]);
-  await fetch("/partite/finegara",{ method:"POST", body:fd });
   loadUser();
 }
 
 async function creaPartita(){
   await fetch("/partite/create",{
     method:"POST",
-    headers:{ "Content-Type":"application/json" },
+    headers:{"Content-Type":"application/json"},
     body:JSON.stringify({
       campionato:cpCampionato.value,
       girone:cpGirone.value,
@@ -359,5 +287,3 @@ loadUser();
 
 </body>
 </html>
-
-

@@ -46,13 +46,6 @@
 
     <input type="date" id="filterData" class="border p-2 rounded" onchange="applyFilters()">
 
-    <select id="filterRevision" class="border p-2 rounded" onchange="applyFilters()">
-      <option value="">Revisioni</option>
-      <option value="revisionata">Solo revisionate</option>
-      <option value="non_revisionata">Solo non revisionate</option>
-      <option value="mie_revisionate">Mie revisionate</option>
-    </select>
-
     <label class="flex items-center gap-2">
       <input type="checkbox" id="filterFuture" onchange="applyFilters()"> Solo future
     </label>
@@ -62,35 +55,6 @@
 
     <button onclick="resetFilters()" class="bg-gray-200 px-3 py-2 rounded">Reset</button>
   </div>
-</section>
-
-<!-- ================= CREA PARTITA ================= -->
-<section class="bg-white p-4 rounded shadow">
-  <h2 class="text-2xl font-bold mb-2">Crea nuova partita</h2>
-
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-    <select id="cpCampionato" class="border p-2 rounded" onchange="updateGironiCreate()">
-      <option value="A2">A2</option>
-      <option value="Serie B">Serie B</option>
-    </select>
-
-    <select id="cpGirone" class="border p-2 rounded"></select>
-
-    <input type="date" id="cpData" class="border p-2 rounded">
-    <input type="time" id="cpOrario" class="border p-2 rounded">
-    <input id="cpSquadraA" placeholder="Squadra casa" class="border p-2 rounded">
-    <input id="cpSquadraB" placeholder="Squadra ospite" class="border p-2 rounded">
-    <input id="cpCampo" placeholder="Campo" class="border p-2 rounded">
-    <input id="cpNumeroGara" placeholder="Numero gara" class="border p-2 rounded">
-
-    <button id="btnCrea" class="bg-green-600 text-white px-4 py-2 rounded">
-      Crea Partita
-    </button>
-  </div>
-
-  <div id="cpMsg" class="mt-2 text-sm"></div>
-  <div id="cpError" class="hidden text-red-600 text-sm"></div>
-  <div id="successMsg" class="hidden text-green-600 font-semibold"></div>
 </section>
 
 <!-- ================= ELENCO PARTITE ================= -->
@@ -142,7 +106,6 @@ async function loadUser() {
   iscrizioniUtente = await (await fetch("/mie-iscrizioni")).json();
   allPartite = await (await fetch("/partite")).json();
 
-  checkRevisionNotice();
   renderPartite();
 }
 
@@ -151,7 +114,6 @@ function resetFilters() {
   filterCampionato.value="";
   filterGirone.value="";
   filterData.value="";
-  filterRevision.value="";
   filterFuture.checked=false;
   filterSquadra.value="";
   currentPage=1;
@@ -209,6 +171,7 @@ function renderPartite() {
 /* ================= CARD + REGISTRAZIONE ================= */
 function renderPartitaCard(p){
   const iscr=iscrizioniUtente.find(i=>i.partita_id===p.id);
+
   partiteContainer.innerHTML+=`
   <div class="border p-4 rounded">
     <h3 class="font-bold">${p.campionato} - ${p.squadra_a} vs ${p.squadra_b}</h3>
@@ -217,19 +180,32 @@ function renderPartitaCard(p){
       Gara ${p.numero_gara||"-"} | Girone ${p.girone||"-"}
     </p>
     <p>Stato: <b>${p.stato}</b></p>
-    ${iscr ? `<p class="text-green-700 mt-2">Iscritto come <b>${iscr.ruolo}</b></p>` : `
-      <button onclick="toggleIscrizioneForm(${p.id})"
-        class="bg-blue-600 text-white px-3 py-1 rounded mt-2">Registrati</button>
-      <form id="iscrizione-${p.id}" class="hidden mt-2">
+
+    ${iscr ? `
+      <p class="text-green-700 mt-2">Iscritto come <b>${iscr.ruolo}</b></p>
+    ` : `
+      <button type="button"
+        onclick="toggleIscrizioneForm(${p.id})"
+        class="bg-blue-600 text-white px-3 py-1 rounded mt-2">
+        Registrati
+      </button>
+
+      <div id="iscrizione-${p.id}" class="hidden mt-3 border p-3 rounded bg-gray-50">
         <select id="ruolo-${p.id}" class="border p-2 rounded w-full mb-2">
           <option value="caller">Caller</option>
           <option value="statistician">Statistician</option>
           <option value="standby">Standby</option>
         </select>
-        <input type="time" id="orario-${p.id}" class="border p-2 rounded w-full mb-2">
-        <button onclick="confermaIscrizione(event,${p.id})"
-          class="bg-green-600 text-white px-3 py-1 rounded">Conferma</button>
-      </form>
+
+        <input type="time" id="orario-${p.id}"
+          class="border p-2 rounded w-full mb-2">
+
+        <button type="button"
+          onclick="confermaIscrizione(${p.id})"
+          class="bg-green-600 text-white px-3 py-1 rounded">
+          Conferma
+        </button>
+      </div>
     `}
   </div>`;
 }
@@ -238,56 +214,41 @@ function renderPartitaCard(p){
 function toggleIscrizioneForm(id){
   document.getElementById(`iscrizione-${id}`).classList.toggle("hidden");
 }
-async function confermaIscrizione(e,id){
-  e.preventDefault();
-  await fetch("/partite/registrati",{
+
+async function confermaIscrizione(id){
+  const ruolo=document.getElementById(`ruolo-${id}`).value;
+  const orario=document.getElementById(`orario-${id}`).value;
+
+  if(!ruolo || !orario){
+    alert("Seleziona ruolo e orario di arrivo");
+    return;
+  }
+
+  const res=await fetch("/partite/registrati",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({
       partita_id:id,
-      ruolo:document.getElementById(`ruolo-${id}`).value,
-      orario_arrivo:document.getElementById(`orario-${id}`).value
+      ruolo,
+      orario_arrivo:orario
     })
   });
-  loadUser();
-}
 
-/* ================= CREATE ================= */
-function updateGironiCreate(){
-  cpGirone.innerHTML = cpCampionato.value==="A2"
-    ? `<option value="UNICO">UNICO</option>`
-    : `<option value="A">A</option><option value="B">B</option>`;
-}
-btnCrea.onclick=async()=>{
-  const payload={
-    campionato:cpCampionato.value,
-    girone:cpGirone.value,
-    data_gara:cpData.value,
-    orario:cpOrario.value,
-    squadra_a:cpSquadraA.value,
-    squadra_b:cpSquadraB.value,
-    campo_gioco:cpCampo.value,
-    numero_gara:cpNumeroGara.value
-  };
-  const res=await fetch("/partite/create",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify(payload)
-  });
-  successMsg.classList.remove("hidden");
-  successMsg.innerText="Partita creata";
+  alert(await res.text());
   loadUser();
-};
+}
 
 /* ================= NAV ================= */
 btnPrev.onclick=()=>{if(currentPage>1){currentPage--;renderPartite();}};
 btnNext.onclick=()=>{currentPage++;renderPartite();};
-async function logout(){await fetch("/logout");location.href="/";}
 
-updateGironiCreate();
+async function logout(){
+  await fetch("/logout");
+  location.href="/";
+}
+
 loadUser();
 </script>
 
 </body>
 </html>
-

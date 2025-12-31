@@ -106,6 +106,12 @@ function diffDays(d){
   return Math.floor((x-t)/86400000);
 }
 
+/* === NUOVO: revisione NON letta === */
+function revisioneNonLetta(p){
+  return p.stato === "revisionata" &&
+         !toArray(p.visualizzata_da).includes(currentUser.id);
+}
+
 /* ================= LOAD ================= */
 async function loadUser(){
   const res = await fetch("/me");
@@ -125,9 +131,8 @@ async function loadUser(){
 /* ================= REVISIONI ================= */
 function mieRevisionate(){
   return allPartite.filter(p =>
-    p.stato==="revisionata" &&
-    iscrizioniUtente.some(i=>i.partita_id===p.id) &&
-    !toArray(p.visualizzata_da).includes(currentUser.id)
+    revisioneNonLetta(p) &&
+    iscrizioniUtente.some(i=>i.partita_id===p.id)
   );
 }
 
@@ -135,7 +140,7 @@ function checkRevisionNotice(){
   revisionNotice.classList.toggle("hidden", mieRevisionate().length===0);
 }
 
-  async function confermaVisualizzazione(id){
+async function confermaVisualizzazione(id){
   const res = await fetch("/partite/conferma-visualizzazione",{
     method:"POST",
     headers:{ "Content-Type":"application/json" },
@@ -148,10 +153,8 @@ function checkRevisionNotice(){
   }
 
   alert("Revisione confermata");
-  await loadUser();   // ricarica dati
+  await loadUser();   // ricarica e sparisce la segnalazione
 }
-
-
 
 /* ================= FILTRI ================= */
 function resetFilters(){
@@ -233,6 +236,8 @@ function renderPartitaCard(p,isPriority){
   const iscr=iscrizioniUtente.find(i=>i.partita_id===p.id);
   let extra="";
 
+  /* ---- (TUTTO IL BLOCCO iscrizione / fine gara / upload È INVARIATO) ---- */
+
   if(!iscr){
     extra=`
       <button onclick="toggleIscrizione(${p.id})"
@@ -291,23 +296,22 @@ function renderPartitaCard(p,isPriority){
       ${p.risultato_finale ? ` | Risultato: <b>${p.risultato_finale}</b>` : ""}
     </p>
 
-    ${p.stato==="revisionata" && p.note_admin ? `
+    ${revisioneNonLetta(p) && p.note_admin ? `
       <div class="mt-3 p-3 bg-yellow-100 border border-yellow-400 rounded">
         <p class="font-semibold">📌 Revisione Admin</p>
         <p>${p.note_admin}</p>
         <button type="button"
-  onclick="confermaVisualizzazione(${p.id})"
-  class="mt-2 bg-orange-600 text-white px-3 py-1 rounded">
-  Conferma lettura
-</button>
-
+          onclick="confermaVisualizzazione(${p.id})"
+          class="mt-2 bg-orange-600 text-white px-3 py-1 rounded">
+          Conferma lettura
+        </button>
       </div>` : ``}
 
     ${extra}
   </div>`;
 }
 
-/* ================= HANDLER ================= */
+/* ================= HANDLER (INVARIATI) ================= */
 function toggleIscrizione(id){
   document.getElementById(`iscr-${id}`).classList.toggle("hidden");
 }

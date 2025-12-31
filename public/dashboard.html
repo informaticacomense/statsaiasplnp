@@ -9,6 +9,7 @@
 
 <body class="bg-gray-100">
 
+<!-- NAVBAR -->
 <nav class="bg-green-600 text-white p-4 flex justify-between">
   <h1 class="text-xl font-bold">StatsAIASPLnp - Area Riservata</h1>
   <div>
@@ -19,6 +20,7 @@
   </div>
 </nav>
 
+<!-- NOTIFICA REVISIONI -->
 <div id="revisionNotice"
   class="hidden text-center text-red-700 font-semibold py-3 bg-red-100">
   ⚠️ Hai partite revisionate da confermare
@@ -26,6 +28,7 @@
 
 <main class="p-6 max-w-7xl mx-auto space-y-8">
 
+<!-- ================= FILTRI ================= -->
 <section class="bg-white p-4 rounded shadow">
   <h2 class="text-2xl font-bold mb-4">Filtra partite</h2>
 
@@ -49,7 +52,7 @@
       <option value="">Revisioni (tutte)</option>
       <option value="revisionata">Solo revisionate</option>
       <option value="non_revisionata">Solo non revisionate</option>
-      <option value="mie_revisionate">Mie revisionate</option>
+      <option value="mie_revisionate">Solo mie revisionate</option>
     </select>
 
     <label class="flex items-center gap-2">
@@ -65,18 +68,42 @@
   </div>
 </section>
 
+<!-- ================= CREA PARTITA ================= -->
 <section class="bg-white p-4 rounded shadow">
-  <div class="flex justify-between mb-3">
-    <h2 class="text-2xl font-bold">Elenco Partite</h2>
-    <div id="pageInfo" class="text-sm text-gray-600"></div>
-  </div>
+  <h2 class="text-2xl font-bold mb-3">Crea nuova partita</h2>
 
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <select id="cpCampionato" class="border p-2 rounded">
+      <option value="A2">A2</option>
+      <option value="Serie B">Serie B</option>
+    </select>
+
+    <select id="cpGirone" class="border p-2 rounded">
+      <option value="UNICO">UNICO</option>
+      <option value="A">A</option>
+      <option value="B">B</option>
+    </select>
+
+    <input type="date" id="cpData" class="border p-2 rounded">
+    <input type="time" id="cpOra" class="border p-2 rounded">
+
+    <input id="cpA" placeholder="Squadra casa" class="border p-2 rounded">
+    <input id="cpB" placeholder="Squadra ospite" class="border p-2 rounded">
+
+    <input id="cpCampo" placeholder="Campo" class="border p-2 rounded">
+    <input id="cpNumero" placeholder="Numero gara" class="border p-2 rounded">
+
+    <button onclick="creaPartita()"
+      class="bg-green-600 text-white px-4 py-2 rounded md:col-span-3">
+      Crea Partita
+    </button>
+  </div>
+</section>
+
+<!-- ================= ELENCO PARTITE ================= -->
+<section class="bg-white p-4 rounded shadow">
+  <h2 class="text-2xl font-bold mb-3">Elenco Partite</h2>
   <div id="partiteContainer" class="space-y-6"></div>
-
-  <div class="flex gap-3 mt-6">
-    <button id="btnPrev" class="bg-gray-200 px-3 py-1 rounded">Pagina precedente</button>
-    <button id="btnNext" class="bg-gray-800 text-white px-3 py-1 rounded">Pagina successiva</button>
-  </div>
 </section>
 
 </main>
@@ -85,13 +112,13 @@
 let currentUser=null;
 let iscrizioniUtente=[];
 let allPartite=[];
-let currentPage=1;
-const pageSize=10;
 
-function formatDate(d){ return new Date(d).toLocaleDateString("it-IT"); }
-function safeArray(v){
-  if(Array.isArray(v)) return v;
-  try{ return JSON.parse(v||"[]"); }catch{ return []; }
+function formatDate(d){return new Date(d).toLocaleDateString("it-IT");}
+function safeArr(v){try{return JSON.parse(v||"[]");}catch{return[];}}
+function daysDiff(d){
+  const a=new Date(d);const b=new Date();
+  a.setHours(0,0,0,0);b.setHours(0,0,0,0);
+  return Math.abs((a-b)/86400000);
 }
 
 async function loadUser(){
@@ -108,51 +135,27 @@ async function loadUser(){
   renderPartite();
 }
 
-function revisioneNonLetta(p){
+function miaRevisionataNonLetta(p){
   return p.stato==="revisionata" &&
-         !safeArray(p.visualizzata_da).includes(currentUser.id);
+    iscrizioniUtente.some(i=>i.partita_id===p.id) &&
+    !safeArr(p.visualizzata_da).includes(currentUser.id);
 }
 
 function updateRevisionNotice(){
-  const count=allPartite.filter(p =>
-    revisioneNonLetta(p) &&
-    iscrizioniUtente.some(i=>i.partita_id===p.id)
-  ).length;
-  revisionNotice.classList.toggle("hidden", count===0);
+  revisionNotice.classList.toggle("hidden",
+    allPartite.filter(miaRevisionataNonLetta).length===0);
 }
-
-function resetFilters(){
-  filterCampionato.value="";
-  filterGirone.value="";
-  filterData.value="";
-  filterRevision.value="";
-  filterFuture.checked=false;
-  filterSquadra.value="";
-  currentPage=1;
-  renderPartite();
-}
-function applyFilters(){ currentPage=1; renderPartite(); }
 
 function runFilters(list){
   const q=filterSquadra.value.toLowerCase().trim();
-  const today=new Date().toISOString().slice(0,10);
-
   return list.filter(p=>{
     if(filterCampionato.value && p.campionato!==filterCampionato.value) return false;
     if(filterGirone.value && p.girone!==filterGirone.value) return false;
-    if(filterData.value && p.data_gara<filterData.value) return false;
-    if(filterFuture.checked && p.data_gara<today) return false;
-
-    if(filterRevision.value==="revisionata" && p.stato!=="revisionata") return false;
-    if(filterRevision.value==="non_revisionata" && p.stato==="revisionata") return false;
-    if(filterRevision.value==="mie_revisionate"){
-      if(!(p.stato==="revisionata" &&
-           iscrizioniUtente.some(i=>i.partita_id===p.id))) return false;
-    }
-
+    if(filterFuture.checked && p.data_gara < new Date().toISOString().slice(0,10)) return false;
+    if(filterRevision.value==="mie_revisionate" && !miaRevisionataNonLetta(p)) return false;
     if(q){
-      const a=(p.squadra_a||"").toLowerCase();
-      const b=(p.squadra_b||"").toLowerCase();
+      const a=p.squadra_a.toLowerCase();
+      const b=p.squadra_b.toLowerCase();
       if(!a.includes(q)&&!b.includes(q)) return false;
     }
     return true;
@@ -163,101 +166,132 @@ function renderPartite(){
   partiteContainer.innerHTML="";
   let list=runFilters(allPartite);
 
-  // ordinamento: revisionate non lette in alto
-  list.sort((a,b)=>{
-    return (revisioneNonLetta(b)?1:0)-(revisioneNonLetta(a)?1:0);
-  });
-
-  const start=(currentPage-1)*pageSize;
-  const page=list.slice(start,start+pageSize);
-
-  if(!page.length){
-    partiteContainer.innerHTML="<p class='text-gray-500'>Nessuna partita trovata</p>";
-    return;
+  if(filterSquadra.value.trim()){
+    list.sort((a,b)=>daysDiff(a.data_gara)-daysDiff(b.data_gara));
   }
 
-  page.forEach(p=>renderPartitaCard(p));
-  btnPrev.disabled=currentPage===1;
-  btnNext.disabled=start+pageSize>=list.length;
-  pageInfo.innerText=`Pagina ${currentPage}`;
+  list.sort((a,b)=>
+    (miaRevisionataNonLetta(b)?1:0)-(miaRevisionataNonLetta(a)?1:0)
+  );
+
+  list.forEach(p=>renderCard(p));
 }
 
-function renderPartitaCard(p){
+function renderCard(p){
   const iscr=iscrizioniUtente.find(i=>i.partita_id===p.id);
-  let extra="";
+  let html=`
+  <div class="border p-4 rounded ${miaRevisionataNonLetta(p)?'bg-red-50 border-red-600':''}">
+    <h3 class="font-bold">${p.campionato} - ${p.squadra_a} vs ${p.squadra_b}</h3>
+    <p>${formatDate(p.data_gara)} ore ${p.orario||"-"} | Gara ${p.numero_gara||"-"}</p>
+    <p>Stato: <b>${p.stato}</b>
+    ${p.risultato_finale?` | Risultato: <b>${p.risultato_finale}</b>`:""}</p>`;
 
-  if(!iscr){
-    extra=`
-      <button onclick="toggleIscrizione(${p.id})"
-        class="bg-blue-600 text-white px-3 py-1 rounded mt-2">Registrati</button>
-      <div id="iscr-${p.id}" class="hidden mt-2 border p-3 rounded bg-gray-50">
-        <select id="ruolo-${p.id}" class="border p-2 rounded w-full mb-2">
-          <option value="caller">Caller</option>
-          <option value="statistician">Statistician</option>
-          <option value="standby">Standby</option>
-        </select>
-        <input type="time" id="orario-${p.id}" class="border p-2 rounded w-full mb-2">
-        <button onclick="confermaIscrizione(${p.id})"
-          class="bg-green-600 text-white px-3 py-1 rounded">Conferma</button>
-      </div>`;
-  } else {
-    extra=`<p class="mt-2 text-green-700">Iscritto come <b>${iscr.ruolo}</b></p>`;
+  if(miaRevisionataNonLetta(p)){
+    html+=`
+    <div class="mt-2 bg-yellow-100 p-3 rounded">
+      <p><b>Revisione Admin</b></p>
+      <p>${p.note_admin||""}</p>
+      <button onclick="confermaVisualizzazione(${p.id})"
+        class="mt-2 bg-orange-600 text-white px-3 py-1 rounded">
+        Conferma lettura
+      </button>
+    </div>`;
   }
 
-  partiteContainer.innerHTML+=`
-  <div class="border p-4 rounded ${revisioneNonLetta(p)?'border-red-600 bg-red-50':''}">
-    <h3 class="font-bold">${p.campionato} - ${p.squadra_a} vs ${p.squadra_b}</h3>
-    <p class="text-sm text-gray-600">
-      ${formatDate(p.data_gara)} ore ${p.orario||"-"} |
-      Gara ${p.numero_gara||"-"} | Girone ${p.girone||"-"}
-    </p>
-    <p>
-      Stato: <b>${p.stato}</b>
-      ${p.risultato_finale ? ` | Risultato: <b>${p.risultato_finale}</b>` : ""}
-    </p>
+  if(!iscr){
+    html+=`
+    <button onclick="iscriviti(${p.id})"
+      class="mt-2 bg-blue-600 text-white px-3 py-1 rounded">
+      Registrati
+    </button>`;
+  } else {
+    html+=`<p class="mt-2 text-green-700">Iscritto come ${iscr.ruolo}</p>`;
 
-    ${revisioneNonLetta(p)&&p.note_admin?`
-      <div class="mt-3 p-3 bg-yellow-100 border border-yellow-400 rounded">
-        <p class="font-semibold">📌 Revisione Admin</p>
-        <p>${p.note_admin}</p>
-        <button onclick="confermaVisualizzazione(${p.id})"
-          class="mt-2 bg-orange-600 text-white px-3 py-1 rounded">
-          Conferma lettura
-        </button>
-      </div>`:""}
+    if(iscr.ruolo==="caller"){
+      html+=`
+      <input id="ris-${p.id}" class="border p-2 w-full mt-2" placeholder="Risultato finale">
+      <textarea id="note-${p.id}" class="border p-2 w-full mt-2" placeholder="Note"></textarea>
+      <button onclick="fineCaller(${p.id})"
+        class="bg-purple-600 text-white px-3 py-1 rounded mt-2">
+        Termina gara
+      </button>`;
+    }
 
-    ${extra}
-  </div>`;
+    if(iscr.ruolo==="statistician"){
+      html+=`
+      <label class="block mt-2">FILE FLS</label>
+      <input type="file" id="fls-${p.id}">
+      <label class="block mt-2">PDF del TABELLINO</label>
+      <input type="file" id="pdf-${p.id}">
+      <button onclick="fineStat(${p.id})"
+        class="bg-purple-600 text-white px-3 py-1 rounded mt-2">
+        Carica file
+      </button>`;
+    }
+  }
+
+  html+="</div>";
+  partiteContainer.innerHTML+=html;
 }
 
 async function confermaVisualizzazione(id){
   await fetch("/partite/conferma-visualizzazione",{
     method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({ partita_id:id })
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({partita_id:id})
   });
-  await loadUser();
+  loadUser();
 }
 
-async function confermaIscrizione(id){
+async function iscriviti(id){
   await fetch("/partite/registrati",{
     method:"POST",
-    headers:{ "Content-Type":"application/json" },
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({partita_id:id,ruolo:"caller",orario_arrivo:"00:00"})
+  });
+  loadUser();
+}
+
+async function fineCaller(id){
+  await fetch("/partite/finegara",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
     body:JSON.stringify({
       partita_id:id,
-      ruolo:document.getElementById(`ruolo-${id}`).value,
-      orario_arrivo:document.getElementById(`orario-${id}`).value
+      risultato_finale:document.getElementById(`ris-${id}`).value,
+      note:document.getElementById(`note-${id}`).value
     })
   });
   loadUser();
 }
 
-function toggleIscrizione(id){
-  document.getElementById(`iscr-${id}`).classList.toggle("hidden");
+async function fineStat(id){
+  const fd=new FormData();
+  fd.append("partita_id",id);
+  fd.append("file_stat",document.getElementById(`fls-${id}`).files[0]);
+  fd.append("pdf_stat",document.getElementById(`pdf-${id}`).files[0]);
+  await fetch("/partite/finegara",{method:"POST",body:fd});
+  loadUser();
 }
 
-btnPrev.onclick=()=>{if(currentPage>1){currentPage--;renderPartite();}};
-btnNext.onclick=()=>{currentPage++;renderPartite();};
+async function creaPartita(){
+  await fetch("/partite/create",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      campionato:cpCampionato.value,
+      girone:cpGirone.value,
+      data_gara:cpData.value,
+      orario:cpOra.value,
+      squadra_a:cpA.value,
+      squadra_b:cpB.value,
+      campo_gioco:cpCampo.value,
+      numero_gara:cpNumero.value
+    })
+  });
+  loadUser();
+}
+
 async function logout(){await fetch("/logout");location.href="/";}
 
 loadUser();

@@ -207,10 +207,10 @@ function sortSmart(list){
 function renderPartite(){
   partiteContainer.innerHTML = "";
 
-  // 1️⃣ priorità: revisionate dell’utente
+  // PRIORITÀ: revisionate dell’utente
   const priority = myRevisionate();
 
-  // 2️⃣ resto (ESCLUSIONE SECCA per ID)
+  // RESTO (esclusione secca per ID)
   let rest = runFilters(allPartite)
     .filter(p => !priority.some(r => r.id === p.id));
 
@@ -228,8 +228,8 @@ function renderPartite(){
     return;
   }
 
-  page.forEach(p => renderPartitaCard(p,
-    priority.some(r => r.id === p.id)));
+  page.forEach(p =>
+    renderPartitaCard(p, priority.some(r => r.id === p.id)));
 
   btnPrev.disabled = currentPage === 1;
   btnNext.disabled = start + pageSize >= ordered.length;
@@ -261,6 +261,13 @@ function renderPartitaCard(p, isPriority){
         ? ` | Risultato: <b>${p.risultato_finale}</b>`
         : ""}
     </p>
+
+    ${p.stato === "revisionata" && p.note_admin ? `
+      <div class="mt-3 p-3 bg-yellow-100 border border-yellow-400 rounded">
+        <p class="font-semibold mb-1">📌 Revisione Admin</p>
+        <p>${p.note_admin}</p>
+      </div>
+    ` : ``}
   </div>`;
 }
 

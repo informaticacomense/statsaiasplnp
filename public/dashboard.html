@@ -327,26 +327,52 @@ async function confermaVisualizzazione(id){
 }
 
 async function fineCaller(id){
-  await fetch("/partite/finegara",{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({
-      partita_id:id,
-      risultato_finale:document.getElementById(`ris-${id}`).value,
-      note:document.getElementById(`note-${id}`).value
-    })
+  const fd = new FormData();
+  fd.append("partita_id", id);
+  fd.append("risultato_finale", document.getElementById(`ris-${id}`).value);
+  fd.append("note", document.getElementById(`note-${id}`).value);
+
+  const res = await fetch("/partite/finegara", {
+    method: "POST",
+    body: fd
   });
+
+  if (!res.ok) {
+    alert("Errore nel salvataggio del risultato");
+    return;
+  }
+
   loadUser();
 }
 
+
 async function fineStat(id){
+  const flsInput = document.getElementById(`fls-${id}`);
+  const pdfInput = document.getElementById(`pdf-${id}`);
+
+  if (!flsInput.files.length || !pdfInput.files.length) {
+    alert("Carica sia il FILE FLS che il PDF del TABELLINO");
+    return;
+  }
+
   const fd = new FormData();
   fd.append("partita_id", id);
-  fd.append("file_stat", document.getElementById(`fls-${id}`).files[0]);
-  fd.append("pdf_stat", document.getElementById(`pdf-${id}`).files[0]);
-  await fetch("/partite/finegara",{ method:"POST", body:fd });
+  fd.append("file_stat", flsInput.files[0]);
+  fd.append("pdf_stat", pdfInput.files[0]);
+
+  const res = await fetch("/partite/finegara", {
+    method: "POST",
+    body: fd
+  });
+
+  if (!res.ok) {
+    alert("Errore nel caricamento dei file");
+    return;
+  }
+
   loadUser();
 }
+
 
 async function creaPartita(){
   await fetch("/partite/create",{

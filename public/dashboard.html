@@ -110,89 +110,120 @@
 </main>
 
 <script>
-/* ================== VARIABILI ================== */
+/* ================= VARIABILI ================= */
 let currentUser = null;
 let iscrizioniUtente = [];
 let allPartite = [];
 
-/* ================== UTILS ================== */
+/* ================= UTILS ================= */
 function normalizeVisualizzata(v){
   if(!v) return [];
   if(Array.isArray(v)) return v.map(Number);
   try { return JSON.parse(v).map(Number); } catch { return []; }
 }
-function formatDate(d){ return new Date(d).toLocaleDateString("it-IT"); }
+function formatDate(d){
+  return new Date(d).toLocaleDateString("it-IT");
+}
 
-/* ================== LOAD ================== */
+/* ================= LOAD ================= */
 async function loadUser(){
   const res = await fetch("/me");
   if(!res.ok) return location.href="/";
 
   currentUser = await res.json();
-  userName.innerText = currentUser.nome+" "+currentUser.cognome;
-  if(currentUser.ruolo==="admin") adminLink.classList.remove("hidden");
+  userName.innerText = currentUser.nome + " " + currentUser.cognome;
+  if(currentUser.ruolo === "admin") adminLink.classList.remove("hidden");
 
   iscrizioniUtente = await (await fetch("/mie-iscrizioni")).json();
   allPartite = await (await fetch("/partite")).json();
+
   renderInitial();
 }
 
-/* ================== REVISIONI ================== */
+/* ================= REVISIONI ================= */
 function miaRevisionataNonLetta(p){
-  return p.stato==="revisionata" &&
-    iscrizioniUtente.some(i=>i.partita_id===p.id) &&
-    !normalizeVisualizzata(p.visualizzata_da).includes(currentUser.id);
+  return (
+    p.stato === "revisionata" &&
+    iscrizioniUtente.some(i => i.partita_id === p.id) &&
+    !normalizeVisualizzata(p.visualizzata_da).includes(currentUser.id)
+  );
 }
 
-/* ================== APERTURA ================== */
+/* ================= APERTURA ================= */
 function renderInitial(){
   const rev = allPartite.filter(miaRevisionataNonLetta);
-  revisionNotice.classList.toggle("hidden", rev.length===0);
-  rev.length ? renderList(rev)
-             : partiteContainer.innerHTML="<p class='text-gray-500'>Usa i filtri per cercare le partite.</p>";
+  revisionNotice.classList.toggle("hidden", rev.length === 0);
+
+  if(rev.length){
+    renderList(rev);
+  } else {
+    partiteContainer.innerHTML =
+      "<p class='text-gray-500'>Usa i filtri per cercare le partite.</p>";
+  }
 }
 
-/* ================== FILTRI ================== */
+/* ================= FILTRI ================= */
 function applyFilters(){
-  let list=[...allPartite];
-  if(filterRevision.value==="mie_revisionate") list=list.filter(miaRevisionataNonLetta);
-  if(filterCampionato.value) list=list.filter(p=>p.campionato===filterCampionato.value);
-  if(filterGirone.value) list=list.filter(p=>p.girone===filterGirone.value);
-  if(filterData.value) list=list.filter(p=>p.data_gara>=filterData.value);
-  if(filterSquadra.value){
-    const q=filterSquadra.value.toLowerCase();
-    list=list.filter(p=>p.squadra_a.toLowerCase().includes(q)||p.squadra_b.toLowerCase().includes(q));
+  let list = [...allPartite];
+
+  if(filterRevision.value === "mie_revisionate"){
+    list = list.filter(miaRevisionataNonLetta);
   }
+  if(filterCampionato.value){
+    list = list.filter(p => p.campionato === filterCampionato.value);
+  }
+  if(filterGirone.value){
+    list = list.filter(p => p.girone === filterGirone.value);
+  }
+  if(filterData.value){
+    list = list.filter(p => p.data_gara >= filterData.value);
+  }
+  if(filterSquadra.value){
+    const q = filterSquadra.value.toLowerCase();
+    list = list.filter(p =>
+      p.squadra_a.toLowerCase().includes(q) ||
+      p.squadra_b.toLowerCase().includes(q)
+    );
+  }
+
   renderList(list);
 }
+
 function resetFilters(){
-  filterCampionato.value=filterGirone.value=filterData.value=filterSquadra.value=filterRevision.value="";
+  filterCampionato.value =
+  filterGirone.value =
+  filterData.value =
+  filterSquadra.value =
+  filterRevision.value = "";
   renderInitial();
 }
 
-/* ================== RENDER ================== */
+/* ================= RENDER ================= */
 function renderList(list){
-  partiteContainer.innerHTML="";
+  partiteContainer.innerHTML = "";
   if(!list.length){
-    partiteContainer.innerHTML="<p class='text-gray-500'>Nessuna partita</p>";
+    partiteContainer.innerHTML = "<p class='text-gray-500'>Nessuna partita</p>";
     return;
   }
   list.forEach(renderCard);
 }
 
 function renderCard(p){
-  const iscr=iscrizioniUtente.find(i=>i.partita_id===p.id);
-  let html=`
-  <div class="border p-4 rounded ${miaRevisionataNonLetta(p)?'bg-red-50 border-red-600':''}">
+  const iscr = iscrizioniUtente.find(i => i.partita_id === p.id);
+  let html = `
+  <div class="border p-4 rounded ${miaRevisionataNonLetta(p) ? 'bg-red-50 border-red-600' : ''}">
     <h3 class="font-bold">${p.squadra_a} vs ${p.squadra_b}</h3>
-    <p>${formatDate(p.data_gara)} ore ${p.orario||"-"}</p>
-    <p>Stato: <b>${p.stato}</b>${p.risultato_finale?` | <b>${p.risultato_finale}</b>`:""}</p>`;
+    <p>${formatDate(p.data_gara)} ore ${p.orario || "-"}</p>
+    <p>Stato: <b>${p.stato}</b>
+      ${p.risultato_finale ? ` | Risultato: <b>${p.risultato_finale}</b>` : ""}
+    </p>`;
 
+  /* REVISIONE */
   if(miaRevisionataNonLetta(p)){
-    html+=`
+    html += `
     <div class="bg-yellow-100 p-3 mt-2 rounded">
       <p class="font-semibold">Revisione Admin</p>
-      <p>${p.note_admin||""}</p>
+      <p>${p.note_admin || ""}</p>
       <button type="button"
         onclick="this.disabled=true; confermaVisualizzazione(${p.id})"
         class="mt-2 bg-orange-600 text-white px-3 py-1 rounded">
@@ -201,8 +232,9 @@ function renderCard(p){
     </div>`;
   }
 
+  /* ISCRIZIONE / FINE GARA */
   if(!iscr){
-    html+=`
+    html += `
     <button onclick="toggleIscr(${p.id})"
       class="mt-2 bg-blue-600 text-white px-3 py-1 rounded">
       Registrati
@@ -225,14 +257,48 @@ function renderCard(p){
       </button>
     </div>`;
   } else {
-    html+=`<p class="mt-2 text-green-700">Iscritto come ${iscr.ruolo}</p>`;
+    html += `<p class="mt-2 text-green-700">Iscritto come <b>${iscr.ruolo}</b></p>`;
+
+    /* CALLER */
+    if(iscr.ruolo === "caller"){
+      html += `
+      <div class="mt-2 border p-3 rounded bg-gray-50">
+        <label class="block text-sm">Risultato finale</label>
+        <input id="ris-${p.id}" class="border p-2 w-full mb-2">
+
+        <label class="block text-sm">Note</label>
+        <textarea id="note-${p.id}" class="border p-2 w-full mb-2"></textarea>
+
+        <button onclick="fineCaller(${p.id})"
+          class="bg-purple-600 text-white px-3 py-1 rounded">
+          Termina gara
+        </button>
+      </div>`;
+    }
+
+    /* STATISTICIAN */
+    if(iscr.ruolo === "statistician"){
+      html += `
+      <div class="mt-2 border p-3 rounded bg-gray-50">
+        <label class="block text-sm">FILE FLS</label>
+        <input type="file" id="fls-${p.id}" class="mb-2">
+
+        <label class="block text-sm">PDF TABELLINO</label>
+        <input type="file" id="pdf-${p.id}" class="mb-2">
+
+        <button onclick="fineStat(${p.id})"
+          class="bg-purple-600 text-white px-3 py-1 rounded">
+          Carica file
+        </button>
+      </div>`;
+    }
   }
 
-  html+="</div>";
-  partiteContainer.innerHTML+=html;
+  html += "</div>";
+  partiteContainer.innerHTML += html;
 }
 
-/* ================== AZIONI ================== */
+/* ================= AZIONI ================= */
 function toggleIscr(id){
   document.getElementById(`iscr-${id}`).classList.toggle("hidden");
 }
@@ -240,7 +306,7 @@ function toggleIscr(id){
 async function iscriviti(id){
   await fetch("/partite/registrati",{
     method:"POST",
-    headers:{"Content-Type":"application/json"},
+    headers:{ "Content-Type":"application/json" },
     body:JSON.stringify({
       partita_id:id,
       ruolo:document.getElementById(`ruolo-${id}`).value,
@@ -253,16 +319,38 @@ async function iscriviti(id){
 async function confermaVisualizzazione(id){
   await fetch("/partite/conferma-visualizzazione",{
     method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({partita_id:id})
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({ partita_id:id })
   });
+  loadUser();
+}
+
+async function fineCaller(id){
+  await fetch("/partite/finegara",{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({
+      partita_id:id,
+      risultato_finale:document.getElementById(`ris-${id}`).value,
+      note:document.getElementById(`note-${id}`).value
+    })
+  });
+  loadUser();
+}
+
+async function fineStat(id){
+  const fd = new FormData();
+  fd.append("partita_id", id);
+  fd.append("file_stat", document.getElementById(`fls-${id}`).files[0]);
+  fd.append("pdf_stat", document.getElementById(`pdf-${id}`).files[0]);
+  await fetch("/partite/finegara",{ method:"POST", body:fd });
   loadUser();
 }
 
 async function creaPartita(){
   await fetch("/partite/create",{
     method:"POST",
-    headers:{"Content-Type":"application/json"},
+    headers:{ "Content-Type":"application/json" },
     body:JSON.stringify({
       campionato:cpCampionato.value,
       girone:cpGirone.value,

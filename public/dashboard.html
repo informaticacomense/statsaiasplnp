@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -61,43 +62,10 @@
             class="bg-blue-600 text-white px-4 py-2 rounded">
       Cerca
     </button>
-    
 
     <button onclick="resetFilters()"
             class="bg-gray-200 px-3 py-2 rounded">
       Reset
-    </button>
-  </div>
-</section>
-
-<!-- CREA PARTITA -->
-<section class="bg-white p-4 rounded shadow">
-  <h2 class="text-2xl font-bold mb-3">Crea nuova partita</h2>
-
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-    <select id="cpCampionato" class="border p-2 rounded">
-      <option value="A2">A2</option>
-      <option value="Serie B">Serie B</option>
-    </select>
-
-    <select id="cpGirone" class="border p-2 rounded">
-      <option value="UNICO">UNICO</option>
-      <option value="A">A</option>
-      <option value="B">B</option>
-    </select>
-
-    <input type="date" id="cpData" class="border p-2 rounded">
-    <input type="time" id="cpOra" class="border p-2 rounded">
-
-    <input id="cpCasa" placeholder="Squadra casa" class="border p-2 rounded">
-    <input id="cpOspite" placeholder="Squadra ospite" class="border p-2 rounded">
-
-    <input id="cpCampo" placeholder="Campo" class="border p-2 rounded">
-    <input id="cpNumero" placeholder="Numero gara" class="border p-2 rounded">
-
-    <button onclick="creaPartita()"
-            class="bg-green-600 text-white px-4 py-2 rounded md:col-span-3">
-      Crea Partita
     </button>
   </div>
 </section>
@@ -142,10 +110,16 @@ async function loadUser(){
 }
 
 /* ================= REVISIONI ================= */
-function miaRevisionataNonLetta(p){
+function miaRevisionata(p){
   return (
     p.stato === "revisionata" &&
-    iscrizioniUtente.some(i => i.partita_id === p.id) &&
+    iscrizioniUtente.some(i => i.partita_id === p.id)
+  );
+}
+
+function miaRevisionataNonLetta(p){
+  return (
+    miaRevisionata(p) &&
     !normalizeVisualizzata(p.visualizzata_da).includes(currentUser.id)
   );
 }
@@ -168,9 +142,8 @@ function applyFilters(){
   let list = [...allPartite];
 
   if(filterRevision.value === "mie_revisionate"){
-  list = list.filter(miaRevisionata);
-}
-
+    list = list.filter(miaRevisionata);
+  }
   if(filterCampionato.value){
     list = list.filter(p => p.campionato === filterCampionato.value);
   }
@@ -200,14 +173,6 @@ function resetFilters(){
   renderInitial();
 }
 
-  function miaRevisionata(p){
-  return (
-    p.stato === "revisionata" &&
-    iscrizioniUtente.some(i => i.partita_id === p.id)
-  );
-}
-
-
 /* ================= RENDER ================= */
 function renderList(list){
   partiteContainer.innerHTML = "";
@@ -220,6 +185,9 @@ function renderList(list){
 
 function renderCard(p){
   const iscr = iscrizioniUtente.find(i => i.partita_id === p.id);
+  const letta = normalizeVisualizzata(p.visualizzata_da)
+                  .includes(currentUser.id);
+
   let html = `
   <div class="border p-4 rounded ${miaRevisionataNonLetta(p) ? 'bg-red-50 border-red-600' : ''}">
     <h3 class="font-bold">${p.squadra_a} vs ${p.squadra_b}</h3>
@@ -228,80 +196,25 @@ function renderCard(p){
       ${p.risultato_finale ? ` | Risultato: <b>${p.risultato_finale}</b>` : ""}
     </p>`;
 
-  /* REVISIONE */
-  if(miaRevisionataNonLetta(p)){
+  /* ===== BLOCCO REVISIONE SEMPRE VISIBILE ===== */
+  if(miaRevisionata(p)){
     html += `
-    <div class="bg-yellow-100 p-3 mt-2 rounded">
-      <p class="font-semibold">Revisione Admin</p>
-      <p>${p.note_admin || ""}</p>
-      <button type="button"
-        onclick="this.disabled=true; confermaVisualizzazione(${p.id})"
-        class="mt-2 bg-orange-600 text-white px-3 py-1 rounded">
-        Conferma lettura
-      </button>
-    </div>`;
-  }
+    <div class="bg-yellow-100 p-3 mt-2 rounded border border-yellow-400">
+      <p class="font-semibold">📌 Esito revisione Admin</p>
+      <p class="mt-1">${p.note_admin || "Nessuna nota inserita"}</p>
 
-  /* ISCRIZIONE / FINE GARA */
-  if(!iscr){
-    html += `
-    <button onclick="toggleIscr(${p.id})"
-      class="mt-2 bg-blue-600 text-white px-3 py-1 rounded">
-      Registrati
-    </button>
-
-    <div id="iscr-${p.id}" class="hidden mt-2 border p-3 rounded bg-gray-50">
-      <label class="block text-sm">Ruolo</label>
-      <select id="ruolo-${p.id}" class="border p-2 rounded w-full mb-2">
-        <option value="caller">Caller</option>
-        <option value="statistician">Statistician</option>
-        <option value="standby">Standby</option>
-      </select>
-
-      <label class="block text-sm">Orario arrivo</label>
-      <input type="time" id="orario-${p.id}" class="border p-2 rounded w-full mb-2">
-
-      <button onclick="iscriviti(${p.id})"
-        class="bg-green-600 text-white px-3 py-1 rounded">
-        Conferma iscrizione
-      </button>
-    </div>`;
-  } else {
-    html += `<p class="mt-2 text-green-700">Iscritto come <b>${iscr.ruolo}</b></p>`;
-
-    /* CALLER */
-    if(iscr.ruolo === "caller"){
-      html += `
-      <div class="mt-2 border p-3 rounded bg-gray-50">
-        <label class="block text-sm">Risultato finale</label>
-        <input id="ris-${p.id}" class="border p-2 w-full mb-2">
-
-        <label class="block text-sm">Note</label>
-        <textarea id="note-${p.id}" class="border p-2 w-full mb-2"></textarea>
-
-        <button onclick="fineCaller(${p.id})"
-          class="bg-purple-600 text-white px-3 py-1 rounded">
-          Termina gara
+      ${!letta ? `
+        <button type="button"
+          onclick="this.disabled=true; confermaVisualizzazione(${p.id})"
+          class="mt-2 bg-orange-600 text-white px-3 py-1 rounded">
+          Conferma lettura
         </button>
-      </div>`;
-    }
-
-    /* STATISTICIAN */
-    if(iscr.ruolo === "statistician"){
-      html += `
-      <div class="mt-2 border p-3 rounded bg-gray-50">
-        <label class="block text-sm">FILE FLS</label>
-        <input type="file" id="fls-${p.id}" class="mb-2">
-
-        <label class="block text-sm">PDF TABELLINO</label>
-        <input type="file" id="pdf-${p.id}" class="mb-2">
-
-        <button onclick="fineStat(${p.id})"
-          class="bg-purple-600 text-white px-3 py-1 rounded">
-          Carica file
-        </button>
-      </div>`;
-    }
+      ` : `
+        <p class="mt-2 text-green-700 font-semibold">
+          ✔ Revisione confermata
+        </p>
+      `}
+    </div>`;
   }
 
   html += "</div>";
@@ -309,68 +222,11 @@ function renderCard(p){
 }
 
 /* ================= AZIONI ================= */
-function toggleIscr(id){
-  document.getElementById(`iscr-${id}`).classList.toggle("hidden");
-}
-
-async function iscriviti(id){
-  await fetch("/partite/registrati",{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({
-      partita_id:id,
-      ruolo:document.getElementById(`ruolo-${id}`).value,
-      orario_arrivo:document.getElementById(`orario-${id}`).value
-    })
-  });
-  loadUser();
-}
-
 async function confermaVisualizzazione(id){
   await fetch("/partite/conferma-visualizzazione",{
     method:"POST",
     headers:{ "Content-Type":"application/json" },
     body:JSON.stringify({ partita_id:id })
-  });
-  loadUser();
-}
-
-async function fineCaller(id){
-  await fetch("/partite/finegara",{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({
-      partita_id:id,
-      risultato_finale:document.getElementById(`ris-${id}`).value,
-      note:document.getElementById(`note-${id}`).value
-    })
-  });
-  loadUser();
-}
-
-async function fineStat(id){
-  const fd = new FormData();
-  fd.append("partita_id", id);
-  fd.append("file_stat", document.getElementById(`fls-${id}`).files[0]);
-  fd.append("pdf_stat", document.getElementById(`pdf-${id}`).files[0]);
-  await fetch("/partite/finegara",{ method:"POST", body:fd });
-  loadUser();
-}
-
-async function creaPartita(){
-  await fetch("/partite/create",{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({
-      campionato:cpCampionato.value,
-      girone:cpGirone.value,
-      data_gara:cpData.value,
-      orario:cpOra.value,
-      squadra_a:cpCasa.value,
-      squadra_b:cpOspite.value,
-      campo_gioco:cpCampo.value,
-      numero_gara:cpNumero.value
-    })
   });
   loadUser();
 }

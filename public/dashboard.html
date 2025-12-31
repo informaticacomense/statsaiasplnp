@@ -22,7 +22,7 @@
 
 <!-- NOTIFICA REVISIONI -->
 <div id="revisionNotice"
-  class="hidden text-center text-red-700 font-semibold py-3 bg-red-100">
+     class="hidden text-center text-red-700 font-semibold py-3 bg-red-100">
   ⚠️ Hai partite revisionate da confermare
 </div>
 
@@ -54,14 +54,16 @@
     </select>
 
     <input type="text" id="filterSquadra"
-      class="border p-2 rounded"
-      placeholder="Cerca squadra">
+           class="border p-2 rounded"
+           placeholder="Cerca squadra">
 
-    <button onclick="applyFilters()" class="bg-blue-600 text-white px-4 py-2 rounded">
+    <button onclick="applyFilters()"
+            class="bg-blue-600 text-white px-4 py-2 rounded">
       Cerca
     </button>
 
-    <button onclick="resetFilters()" class="bg-gray-200 px-3 py-2 rounded">
+    <button onclick="resetFilters()"
+            class="bg-gray-200 px-3 py-2 rounded">
       Reset
     </button>
   </div>
@@ -93,7 +95,7 @@
     <input id="cpNumero" placeholder="Numero gara" class="border p-2 rounded">
 
     <button onclick="creaPartita()"
-      class="bg-green-600 text-white px-4 py-2 rounded md:col-span-3">
+            class="bg-green-600 text-white px-4 py-2 rounded md:col-span-3">
       Crea Partita
     </button>
   </div>
@@ -108,35 +110,42 @@
 </main>
 
 <script>
-let currentUser=null;
-let iscrizioniUtente=[];
-let allPartite=[];
-let initialLoad=true;
+/* ================== VARIABILI ================== */
+let currentUser = null;
+let iscrizioniUtente = [];
+let allPartite = [];
 
-/* UTILS */
-function safeArr(v){ try{return JSON.parse(v||"[]");}catch{return[];} }
-function formatDate(d){ return new Date(d).toLocaleDateString("it-IT"); }
+/* ================== UTILS ================== */
+function safeArr(v){
+  try { return JSON.parse(v || "[]"); } catch { return []; }
+}
+function formatDate(d){
+  return new Date(d).toLocaleDateString("it-IT");
+}
 function diffDays(d){
-  const a=new Date(d);const b=new Date();
-  a.setHours(0,0,0,0);b.setHours(0,0,0,0);
-  return Math.abs((a-b)/86400000);
+  const a = new Date(d);
+  const b = new Date();
+  a.setHours(0,0,0,0);
+  b.setHours(0,0,0,0);
+  return Math.abs((a - b) / 86400000);
 }
 
-/* LOAD */
+/* ================== LOAD ================== */
 async function loadUser(){
-  const res=await fetch("/me");
+  const res = await fetch("/me");
   if(!res.ok) return location.href="/";
-  currentUser=await res.json();
-  userName.innerText=currentUser.nome+" "+currentUser.cognome;
-  if(currentUser.ruolo==="admin") adminLink.classList.remove("hidden");
 
-  iscrizioniUtente=await (await fetch("/mie-iscrizioni")).json();
-  allPartite=await (await fetch("/partite")).json();
+  currentUser = await res.json();
+  userName.innerText = currentUser.nome + " " + currentUser.cognome;
+  if(currentUser.ruolo === "admin") adminLink.classList.remove("hidden");
+
+  iscrizioniUtente = await (await fetch("/mie-iscrizioni")).json();
+  allPartite = await (await fetch("/partite")).json();
 
   renderInitial();
 }
 
-/* REVISIONI */
+/* ================== REVISIONI ================== */
 function miaRevisionataNonLetta(p){
   return (
     p.stato === "revisionata" &&
@@ -145,78 +154,78 @@ function miaRevisionataNonLetta(p){
   );
 }
 
-
-/* APERTURA */
+/* ================== APERTURA ================== */
 function renderInitial(){
-  const mieRev=allPartite.filter(miaRevisionataNonLetta);
-  revisionNotice.classList.toggle("hidden", mieRev.length===0);
-  renderList(mieRev);
+  const mieRev = allPartite.filter(miaRevisionataNonLetta);
+  revisionNotice.classList.toggle("hidden", mieRev.length === 0);
+
+  if(mieRev.length){
+    renderList(mieRev);
+  } else {
+    partiteContainer.innerHTML =
+      "<p class='text-gray-500'>Nessuna revisione da confermare. Usa i filtri per cercare le partite.</p>";
+  }
 }
 
-/* FILTRI */
+/* ================== FILTRI ================== */
 function applyFilters(){
-  initialLoad=false;
-  let list=[...allPartite];
+  let list = [...allPartite];
 
-  if(filterRevision.value==="mie_revisionate"){
-    list=list.filter(miaRevisionataNonLetta);
+  if(filterRevision.value === "mie_revisionate"){
+    list = list.filter(miaRevisionataNonLetta);
   }
-
   if(filterCampionato.value){
-    list=list.filter(p=>p.campionato===filterCampionato.value);
+    list = list.filter(p => p.campionato === filterCampionato.value);
   }
-
   if(filterGirone.value){
-    list=list.filter(p=>p.girone===filterGirone.value);
+    list = list.filter(p => p.girone === filterGirone.value);
   }
-
   if(filterData.value){
-    list=list.filter(p=>p.data_gara>=filterData.value);
+    list = list.filter(p => p.data_gara >= filterData.value);
   }
-
   if(filterSquadra.value){
-    const q=filterSquadra.value.toLowerCase();
-    list=list.filter(p =>
+    const q = filterSquadra.value.toLowerCase();
+    list = list.filter(p =>
       p.squadra_a.toLowerCase().includes(q) ||
       p.squadra_b.toLowerCase().includes(q)
     );
-    list.sort((a,b)=>diffDays(a.data_gara)-diffDays(b.data_gara));
+    list.sort((a,b) => diffDays(a.data_gara) - diffDays(b.data_gara));
   }
 
   renderList(list);
 }
 
 function resetFilters(){
-  filterCampionato.value="";
-  filterGirone.value="";
-  filterData.value="";
-  filterSquadra.value="";
-  filterRevision.value="";
-  initialLoad=true;
+  filterCampionato.value = "";
+  filterGirone.value = "";
+  filterData.value = "";
+  filterSquadra.value = "";
+  filterRevision.value = "";
   renderInitial();
 }
 
-/* RENDER */
+/* ================== RENDER ================== */
 function renderList(list){
-  partiteContainer.innerHTML="";
+  partiteContainer.innerHTML = "";
   if(!list.length){
-    partiteContainer.innerHTML="<p class='text-gray-500'>Nessuna partita</p>";
+    partiteContainer.innerHTML = "<p class='text-gray-500'>Nessuna partita</p>";
     return;
   }
-  list.forEach(p=>renderCard(p));
+  list.forEach(renderCard);
 }
 
 function renderCard(p){
-  const iscr=iscrizioniUtente.find(i=>i.partita_id===p.id);
-  let html=`
-  <div class="border p-4 rounded ${miaRevisionataNonLetta(p)?'bg-red-50 border-red-600':''}">
+  const iscr = iscrizioniUtente.find(i => i.partita_id === p.id);
+  let html = `
+  <div class="border p-4 rounded ${miaRevisionataNonLetta(p) ? 'bg-red-50 border-red-600' : ''}">
     <h3 class="font-bold">${p.squadra_a} vs ${p.squadra_b}</h3>
-    <p>${formatDate(p.data_gara)} ore ${p.orario||"-"} | Gara ${p.numero_gara||"-"}</p>
+    <p>${formatDate(p.data_gara)} ore ${p.orario || "-"}</p>
     <p>Stato: <b>${p.stato}</b>
-    ${p.risultato_finale?` | Risultato: <b>${p.risultato_finale}</b>`:""}</p>`;
+      ${p.risultato_finale ? ` | Risultato: <b>${p.risultato_finale}</b>` : ""}
+    </p>`;
 
-  if (miaRevisionataNonLetta(p)) {
-  html += `
+  if(miaRevisionataNonLetta(p)){
+    html += `
     <div class="bg-yellow-100 p-3 mt-2 rounded">
       <p class="font-semibold">Revisione Admin</p>
       <p>${p.note_admin || ""}</p>
@@ -225,25 +234,20 @@ function renderCard(p){
         class="mt-2 bg-orange-600 text-white px-3 py-1 rounded">
         Conferma lettura
       </button>
-    </div>
-  `;
-}
-
-
     </div>`;
   }
 
   if(!iscr){
-    html+=`
+    html += `
     <button onclick="iscriviti(${p.id})"
       class="mt-2 bg-blue-600 text-white px-3 py-1 rounded">
       Registrati
     </button>`;
   } else {
-    html+=`<p class="mt-2 text-green-700">Iscritto come ${iscr.ruolo}</p>`;
+    html += `<p class="mt-2 text-green-700">Iscritto come ${iscr.ruolo}</p>`;
 
-    if(iscr.ruolo==="caller"){
-      html+=`
+    if(iscr.ruolo === "caller"){
+      html += `
       <input id="ris-${p.id}" class="border p-2 w-full mt-2" placeholder="Risultato finale">
       <textarea id="note-${p.id}" class="border p-2 w-full mt-2" placeholder="Note"></textarea>
       <button onclick="fineCaller(${p.id})"
@@ -252,8 +256,8 @@ function renderCard(p){
       </button>`;
     }
 
-    if(iscr.ruolo==="statistician"){
-      html+=`
+    if(iscr.ruolo === "statistician"){
+      html += `
       <label class="block mt-2">FILE FLS</label>
       <input type="file" id="fls-${p.id}">
       <label class="block mt-2">PDF TABELLINO</label>
@@ -265,33 +269,29 @@ function renderCard(p){
     }
   }
 
-  html+="</div>";
-  partiteContainer.innerHTML+=html;
+  html += "</div>";
+  partiteContainer.innerHTML += html;
 }
 
-/* AZIONI */
+/* ================== AZIONI ================== */
 async function confermaVisualizzazione(id){
-  const res = await fetch("/partite/conferma-visualizzazione", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ partita_id: id })
+  await fetch("/partite/conferma-visualizzazione",{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({ partita_id:id })
   });
-
-  if (!res.ok) {
-    alert("Errore nella conferma");
-    return;
-  }
-
-  await loadUser(); // <-- QUESTO È FONDAMENTALE
+  loadUser();
 }
-
-
 
 async function iscriviti(id){
   await fetch("/partite/registrati",{
     method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({partita_id:id,ruolo:"caller",orario_arrivo:"00:00"})
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({
+      partita_id:id,
+      ruolo:"caller",
+      orario_arrivo:"00:00"
+    })
   });
   loadUser();
 }
@@ -299,7 +299,7 @@ async function iscriviti(id){
 async function fineCaller(id){
   await fetch("/partite/finegara",{
     method:"POST",
-    headers:{"Content-Type":"application/json"},
+    headers:{ "Content-Type":"application/json" },
     body:JSON.stringify({
       partita_id:id,
       risultato_finale:document.getElementById(`ris-${id}`).value,
@@ -310,18 +310,18 @@ async function fineCaller(id){
 }
 
 async function fineStat(id){
-  const fd=new FormData();
-  fd.append("partita_id",id);
-  fd.append("file_stat",document.getElementById(`fls-${id}`).files[0]);
-  fd.append("pdf_stat",document.getElementById(`pdf-${id}`).files[0]);
-  await fetch("/partite/finegara",{method:"POST",body:fd});
+  const fd = new FormData();
+  fd.append("partita_id", id);
+  fd.append("file_stat", document.getElementById(`fls-${id}`).files[0]);
+  fd.append("pdf_stat", document.getElementById(`pdf-${id}`).files[0]);
+  await fetch("/partite/finegara", { method:"POST", body:fd });
   loadUser();
 }
 
 async function creaPartita(){
   await fetch("/partite/create",{
     method:"POST",
-    headers:{"Content-Type":"application/json"},
+    headers:{ "Content-Type":"application/json" },
     body:JSON.stringify({
       campionato:cpCampionato.value,
       girone:cpGirone.value,
@@ -346,3 +346,4 @@ loadUser();
 
 </body>
 </html>
+

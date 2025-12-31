@@ -20,7 +20,7 @@
   </div>
 </nav>
 
-<!-- NOTIFICA -->
+<!-- NOTIFICA REVISIONI -->
 <div id="revisionNotice"
   class="hidden text-center text-red-700 font-semibold py-3 bg-red-100">
   ⚠️ Hai partite revisionate da confermare
@@ -33,6 +33,7 @@
   <h2 class="text-2xl font-bold mb-4">Filtra partite e cerca la tua gara</h2>
 
   <div class="flex flex-wrap gap-4 items-end">
+
     <select id="filterCampionato" class="border p-2 rounded" onchange="applyFilters()">
       <option value="">Campionato</option>
       <option value="A2">A2</option>
@@ -46,9 +47,11 @@
       <option value="B">B</option>
     </select>
 
-    <input type="date" id="filterData" class="border p-2 rounded" onchange="applyFilters()">
+    <input type="date" id="filterData" class="border p-2 rounded"
+           onchange="applyFilters()">
 
-    <select id="filterRevision" class="border p-2 rounded" onchange="applyFilters()">
+    <select id="filterRevision" class="border p-2 rounded"
+            onchange="applyFilters()">
       <option value="">Revisioni (tutte)</option>
       <option value="revisionata">Solo revisionate</option>
       <option value="non_revisionata">Solo non revisionate</option>
@@ -56,7 +59,8 @@
     </select>
 
     <label class="flex items-center gap-2">
-      <input type="checkbox" id="filterFuture" onchange="applyFilters()"> Solo future
+      <input type="checkbox" id="filterFuture" onchange="applyFilters()">
+      Solo future
     </label>
 
     <input type="text" id="filterSquadra"
@@ -64,9 +68,11 @@
       placeholder="Cerca per squadra"
       oninput="applyFilters()">
 
-    <button onclick="resetFilters()" class="bg-gray-200 px-3 py-2 rounded">
+    <button onclick="resetFilters()"
+      class="bg-gray-200 px-3 py-2 rounded">
       Reset
     </button>
+
   </div>
 </section>
 
@@ -93,48 +99,53 @@
 
 <script>
 /* ================= VARIABILI ================= */
-let currentUser=null;
-let iscrizioniUtente=[];
-let allPartite=[];
-let currentPage=1;
-const pageSize=10;
+let currentUser = null;
+let iscrizioniUtente = [];
+let allPartite = [];
+let currentPage = 1;
+const pageSize = 10;
 
 /* ================= UTILS ================= */
-function formatDate(d){ return new Date(d).toLocaleDateString("it-IT"); }
-function toArray(v){ try{return JSON.parse(v||"[]");}catch{return[];} }
+function formatDate(d){
+  return new Date(d).toLocaleDateString("it-IT");
+}
+function toArray(v){
+  try { return JSON.parse(v || "[]"); } catch { return []; }
+}
 function diffDays(d){
-  const t=new Date();t.setHours(0,0,0,0);
-  const x=new Date(d);x.setHours(0,0,0,0);
-  return Math.floor((x-t)/86400000);
+  const t = new Date(); t.setHours(0,0,0,0);
+  const x = new Date(d); x.setHours(0,0,0,0);
+  return Math.floor((x - t) / 86400000);
 }
 
 /* ================= LOAD ================= */
 async function loadUser(){
-  const res=await fetch("/me");
-  if(!res.ok) return location.href="/";
+  const res = await fetch("/me");
+  if (!res.ok) return location.href="/";
 
-  currentUser=await res.json();
-  userName.innerText=currentUser.nome+" "+currentUser.cognome;
-  if(currentUser.ruolo==="admin") adminLink.classList.remove("hidden");
+  currentUser = await res.json();
+  userName.innerText = currentUser.nome + " " + currentUser.cognome;
+  if (currentUser.ruolo === "admin")
+    adminLink.classList.remove("hidden");
 
-  iscrizioniUtente=await (await fetch("/mie-iscrizioni")).json();
-  allPartite=await (await fetch("/partite")).json();
+  iscrizioniUtente = await (await fetch("/mie-iscrizioni")).json();
+  allPartite = await (await fetch("/partite")).json();
 
   checkRevisionNotice();
   renderPartite();
 }
 
 /* ================= REVISIONI ================= */
-function getMyRevisionate(){
+function myRevisionate(){
   return allPartite.filter(p =>
-    p.stato==="revisionata" &&
-    iscrizioniUtente.find(i=>i.partita_id===p.id) &&
+    p.stato === "revisionata" &&
+    iscrizioniUtente.some(i => i.partita_id === p.id) &&
     !toArray(p.visualizzata_da).includes(currentUser.id)
   );
 }
 
 function checkRevisionNotice(){
-  revisionNotice.classList.toggle("hidden", getMyRevisionate().length===0);
+  revisionNotice.classList.toggle("hidden", myRevisionate().length === 0);
 }
 
 /* ================= FILTRI ================= */
@@ -155,26 +166,27 @@ function applyFilters(){
 }
 
 function runFilters(list){
-  const q=filterSquadra.value.toLowerCase().trim();
-  const today=new Date().toISOString().slice(0,10);
+  const q = filterSquadra.value.toLowerCase().trim();
+  const today = new Date().toISOString().slice(0,10);
 
-  return list.filter(p=>{
-    if(filterCampionato.value && p.campionato!==filterCampionato.value) return false;
-    if(filterGirone.value && p.girone!==filterGirone.value) return false;
-    if(filterData.value && p.data_gara<filterData.value) return false;
-    if(filterFuture.checked && p.data_gara<today) return false;
+  return list.filter(p => {
+    if (filterCampionato.value && p.campionato !== filterCampionato.value) return false;
+    if (filterGirone.value && p.girone !== filterGirone.value) return false;
+    if (filterData.value && p.data_gara < filterData.value) return false;
+    if (filterFuture.checked && p.data_gara < today) return false;
 
-    if(filterRevision.value==="revisionata" && p.stato!=="revisionata") return false;
-    if(filterRevision.value==="non_revisionata" && p.stato==="revisionata") return false;
-    if(filterRevision.value==="mie_revisionate"){
-      const i=iscrizioniUtente.find(x=>x.partita_id===p.id);
-      if(!(p.stato==="revisionata" && i)) return false;
+    if (filterRevision.value === "revisionata" && p.stato !== "revisionata") return false;
+    if (filterRevision.value === "non_revisionata" && p.stato === "revisionata") return false;
+    if (filterRevision.value === "mie_revisionate") {
+      if (!(p.stato === "revisionata" &&
+            iscrizioniUtente.some(i => i.partita_id === p.id)))
+        return false;
     }
 
-    if(q){
-      const a=(p.squadra_a||"").toLowerCase();
-      const b=(p.squadra_b||"").toLowerCase();
-      if(!a.includes(q) && !b.includes(q)) return false;
+    if (q) {
+      const a = (p.squadra_a || "").toLowerCase();
+      const b = (p.squadra_b || "").toLowerCase();
+      if (!a.includes(q) && !b.includes(q)) return false;
     }
     return true;
   });
@@ -182,58 +194,59 @@ function runFilters(list){
 
 function sortSmart(list){
   return [...list].sort((a,b)=>{
-    const da=Math.abs(diffDays(a.data_gara));
-    const db=Math.abs(diffDays(b.data_gara));
-    if(da<=3 && db>3) return -1;
-    if(db<=3 && da>3) return 1;
-    if(da<=3 && db<=3) return da-db;
-    return new Date(a.data_gara)-new Date(b.data_gara);
+    const da = Math.abs(diffDays(a.data_gara));
+    const db = Math.abs(diffDays(b.data_gara));
+    if (da<=3 && db>3) return -1;
+    if (db<=3 && da>3) return 1;
+    if (da<=3 && db<=3) return da-db;
+    return new Date(a.data_gara) - new Date(b.data_gara);
   });
 }
 
 /* ================= RENDER ================= */
 function renderPartite(){
-  partiteContainer.innerHTML="";
+  partiteContainer.innerHTML = "";
 
-  // 1️⃣ PRIORITÀ ASSOLUTA: revisionate dell’utente
-  const priority = getMyRevisionate();
+  // 1️⃣ priorità: revisionate dell’utente
+  const priority = myRevisionate();
 
-  // 2️⃣ resto lista filtrata
+  // 2️⃣ resto (ESCLUSIONE SECCA per ID)
   let rest = runFilters(allPartite)
-    .filter(p => !priority.find(x=>x.id===p.id));
+    .filter(p => !priority.some(r => r.id === p.id));
 
-  if(filterSquadra.value.trim()) rest = sortSmart(rest);
+  if (filterSquadra.value.trim())
+    rest = sortSmart(rest);
 
   const ordered = [...priority, ...rest];
 
-  const start=(currentPage-1)*pageSize;
-  const page=ordered.slice(start,start+pageSize);
+  const start = (currentPage-1)*pageSize;
+  const page = ordered.slice(start, start+pageSize);
 
-  if(!page.length){
-    partiteContainer.innerHTML="<p class='text-gray-500'>Nessuna partita trovata</p>";
+  if (!page.length) {
+    partiteContainer.innerHTML =
+      "<p class='text-gray-500'>Nessuna partita trovata</p>";
     return;
   }
 
-  page.forEach(p=>renderPartitaCard(p, priority.some(x=>x.id===p.id)));
+  page.forEach(p => renderPartitaCard(p,
+    priority.some(r => r.id === p.id)));
 
-  btnPrev.disabled=currentPage===1;
-  btnNext.disabled=start+pageSize>=ordered.length;
-  pageInfo.innerText=`Pagina ${currentPage}`;
+  btnPrev.disabled = currentPage === 1;
+  btnNext.disabled = start + pageSize >= ordered.length;
+  pageInfo.innerText = `Pagina ${currentPage}`;
 }
 
 /* ================= CARD ================= */
 function renderPartitaCard(p, isPriority){
-  const iscr=iscrizioniUtente.find(i=>i.partita_id===p.id);
-
-  partiteContainer.innerHTML+=`
+  partiteContainer.innerHTML += `
   <div class="border p-4 rounded ${isPriority?'border-red-600 bg-red-50':''}">
     <div class="flex justify-between items-center">
       <h3 class="font-bold">
         ${p.campionato} - ${p.squadra_a} vs ${p.squadra_b}
       </h3>
       ${isPriority
-        ? `<span class="text-red-700 font-semibold">REVISIONATA</span>`
-        : ``}
+        ? "<span class='text-red-700 font-semibold'>REVISIONATA</span>"
+        : ""}
     </div>
 
     <p class="text-sm text-gray-600">
@@ -246,290 +259,31 @@ function renderPartitaCard(p, isPriority){
       Stato: <b>${p.stato}</b>
       ${p.risultato_finale
         ? ` | Risultato: <b>${p.risultato_finale}</b>`
-        : ``}
+        : ""}
     </p>
-
-    ${iscr ? `<p class="mt-2 text-green-700">
-      Iscritto come <b>${iscr.ruolo}</b>
-    </p>` : ``}
   </div>`;
 }
 
 /* ================= NAV ================= */
-btnPrev.onclick=()=>{if(currentPage>1){currentPage--;renderPartite();}};
-btnNext.onclick=()=>{currentPage++;renderPartite();};
-async function logout(){await fetch("/logout");location.href="/";}
-
-loadUser();
-</script>
-
-</body>
-</html>
-<!DOCTYPE html>
-<html lang="it">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dashboard Utente - StatsAIASPLnp</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-
-<body class="bg-gray-100">
-
-<!-- NAVBAR -->
-<nav class="bg-green-600 text-white p-4 flex justify-between">
-  <h1 class="text-xl font-bold">StatsAIASPLnp - Area Riservata</h1>
-  <div>
-    <span id="userName" class="mr-4"></span>
-    <a href="profile.html" class="mr-4 underline">Profilo</a>
-    <a href="admin.html" id="adminLink" class="mr-4 underline hidden">Gestione Partite</a>
-    <button onclick="logout()" class="bg-red-500 px-3 py-1 rounded">Logout</button>
-  </div>
-</nav>
-
-<!-- NOTIFICA -->
-<div id="revisionNotice"
-  class="hidden text-center text-red-700 font-semibold py-3 bg-red-100">
-  ⚠️ Hai partite revisionate da confermare
-</div>
-
-<main class="p-6 max-w-7xl mx-auto space-y-8">
-
-<!-- ================= FILTRI ================= -->
-<section class="bg-white p-4 rounded shadow">
-  <h2 class="text-2xl font-bold mb-4">Filtra partite e cerca la tua gara</h2>
-
-  <div class="flex flex-wrap gap-4 items-end">
-    <select id="filterCampionato" class="border p-2 rounded" onchange="applyFilters()">
-      <option value="">Campionato</option>
-      <option value="A2">A2</option>
-      <option value="Serie B">Serie B</option>
-    </select>
-
-    <select id="filterGirone" class="border p-2 rounded" onchange="applyFilters()">
-      <option value="">Girone</option>
-      <option value="UNICO">UNICO</option>
-      <option value="A">A</option>
-      <option value="B">B</option>
-    </select>
-
-    <input type="date" id="filterData" class="border p-2 rounded" onchange="applyFilters()">
-
-    <select id="filterRevision" class="border p-2 rounded" onchange="applyFilters()">
-      <option value="">Revisioni (tutte)</option>
-      <option value="revisionata">Solo revisionate</option>
-      <option value="non_revisionata">Solo non revisionate</option>
-      <option value="mie_revisionate">Mie revisionate</option>
-    </select>
-
-    <label class="flex items-center gap-2">
-      <input type="checkbox" id="filterFuture" onchange="applyFilters()"> Solo future
-    </label>
-
-    <input type="text" id="filterSquadra"
-      class="border p-2 rounded"
-      placeholder="Cerca per squadra"
-      oninput="applyFilters()">
-
-    <button onclick="resetFilters()" class="bg-gray-200 px-3 py-2 rounded">
-      Reset
-    </button>
-  </div>
-</section>
-
-<!-- ================= ELENCO PARTITE ================= -->
-<section class="bg-white p-4 rounded shadow">
-  <div class="flex justify-between mb-3">
-    <h2 class="text-2xl font-bold">Elenco Partite</h2>
-    <div id="pageInfo" class="text-sm text-gray-600"></div>
-  </div>
-
-  <div id="partiteContainer" class="space-y-6"></div>
-
-  <div class="flex gap-3 mt-6">
-    <button id="btnPrev" class="bg-gray-200 px-3 py-1 rounded">
-      Pagina precedente
-    </button>
-    <button id="btnNext" class="bg-gray-800 text-white px-3 py-1 rounded">
-      Pagina successiva
-    </button>
-  </div>
-</section>
-
-</main>
-
-<script>
-/* ================= VARIABILI ================= */
-let currentUser=null;
-let iscrizioniUtente=[];
-let allPartite=[];
-let currentPage=1;
-const pageSize=10;
-
-/* ================= UTILS ================= */
-function formatDate(d){ return new Date(d).toLocaleDateString("it-IT"); }
-function toArray(v){ try{return JSON.parse(v||"[]");}catch{return[];} }
-function diffDays(d){
-  const t=new Date();t.setHours(0,0,0,0);
-  const x=new Date(d);x.setHours(0,0,0,0);
-  return Math.floor((x-t)/86400000);
-}
-
-/* ================= LOAD ================= */
-async function loadUser(){
-  const res=await fetch("/me");
-  if(!res.ok) return location.href="/";
-
-  currentUser=await res.json();
-  userName.innerText=currentUser.nome+" "+currentUser.cognome;
-  if(currentUser.ruolo==="admin") adminLink.classList.remove("hidden");
-
-  iscrizioniUtente=await (await fetch("/mie-iscrizioni")).json();
-  allPartite=await (await fetch("/partite")).json();
-
-  checkRevisionNotice();
-  renderPartite();
-}
-
-/* ================= REVISIONI ================= */
-function getMyRevisionate(){
-  return allPartite.filter(p =>
-    p.stato==="revisionata" &&
-    iscrizioniUtente.find(i=>i.partita_id===p.id) &&
-    !toArray(p.visualizzata_da).includes(currentUser.id)
-  );
-}
-
-function checkRevisionNotice(){
-  revisionNotice.classList.toggle("hidden", getMyRevisionate().length===0);
-}
-
-/* ================= FILTRI ================= */
-function resetFilters(){
-  filterCampionato.value="";
-  filterGirone.value="";
-  filterData.value="";
-  filterRevision.value="";
-  filterFuture.checked=false;
-  filterSquadra.value="";
-  currentPage=1;
-  renderPartite();
-}
-
-function applyFilters(){
-  currentPage=1;
-  renderPartite();
-}
-
-function runFilters(list){
-  const q=filterSquadra.value.toLowerCase().trim();
-  const today=new Date().toISOString().slice(0,10);
-
-  return list.filter(p=>{
-    if(filterCampionato.value && p.campionato!==filterCampionato.value) return false;
-    if(filterGirone.value && p.girone!==filterGirone.value) return false;
-    if(filterData.value && p.data_gara<filterData.value) return false;
-    if(filterFuture.checked && p.data_gara<today) return false;
-
-    if(filterRevision.value==="revisionata" && p.stato!=="revisionata") return false;
-    if(filterRevision.value==="non_revisionata" && p.stato==="revisionata") return false;
-    if(filterRevision.value==="mie_revisionate"){
-      const i=iscrizioniUtente.find(x=>x.partita_id===p.id);
-      if(!(p.stato==="revisionata" && i)) return false;
-    }
-
-    if(q){
-      const a=(p.squadra_a||"").toLowerCase();
-      const b=(p.squadra_b||"").toLowerCase();
-      if(!a.includes(q) && !b.includes(q)) return false;
-    }
-    return true;
-  });
-}
-
-function sortSmart(list){
-  return [...list].sort((a,b)=>{
-    const da=Math.abs(diffDays(a.data_gara));
-    const db=Math.abs(diffDays(b.data_gara));
-    if(da<=3 && db>3) return -1;
-    if(db<=3 && da>3) return 1;
-    if(da<=3 && db<=3) return da-db;
-    return new Date(a.data_gara)-new Date(b.data_gara);
-  });
-}
-
-/* ================= RENDER ================= */
-function renderPartite(){
-  partiteContainer.innerHTML="";
-
-  // 1️⃣ PRIORITÀ ASSOLUTA: revisionate dell’utente
-  const priority = getMyRevisionate();
-
-  // 2️⃣ resto lista filtrata
-  let rest = runFilters(allPartite)
-    .filter(p => !priority.find(x=>x.id===p.id));
-
-  if(filterSquadra.value.trim()) rest = sortSmart(rest);
-
-  const ordered = [...priority, ...rest];
-
-  const start=(currentPage-1)*pageSize;
-  const page=ordered.slice(start,start+pageSize);
-
-  if(!page.length){
-    partiteContainer.innerHTML="<p class='text-gray-500'>Nessuna partita trovata</p>";
-    return;
+btnPrev.onclick = () => {
+  if (currentPage > 1) {
+    currentPage--;
+    renderPartite();
   }
-
-  page.forEach(p=>renderPartitaCard(p, priority.some(x=>x.id===p.id)));
-
-  btnPrev.disabled=currentPage===1;
-  btnNext.disabled=start+pageSize>=ordered.length;
-  pageInfo.innerText=`Pagina ${currentPage}`;
+};
+btnNext.onclick = () => {
+  currentPage++;
+  renderPartite();
+};
+async function logout(){
+  await fetch("/logout");
+  location.href="/";
 }
-
-/* ================= CARD ================= */
-function renderPartitaCard(p, isPriority){
-  const iscr=iscrizioniUtente.find(i=>i.partita_id===p.id);
-
-  partiteContainer.innerHTML+=`
-  <div class="border p-4 rounded ${isPriority?'border-red-600 bg-red-50':''}">
-    <div class="flex justify-between items-center">
-      <h3 class="font-bold">
-        ${p.campionato} - ${p.squadra_a} vs ${p.squadra_b}
-      </h3>
-      ${isPriority
-        ? `<span class="text-red-700 font-semibold">REVISIONATA</span>`
-        : ``}
-    </div>
-
-    <p class="text-sm text-gray-600">
-      ${formatDate(p.data_gara)} ore ${p.orario?.slice(0,5)||"-"}
-      | Gara ${p.numero_gara||"-"}
-      | Girone ${p.girone||"-"}
-    </p>
-
-    <p class="mt-1">
-      Stato: <b>${p.stato}</b>
-      ${p.risultato_finale
-        ? ` | Risultato: <b>${p.risultato_finale}</b>`
-        : ``}
-    </p>
-
-    ${iscr ? `<p class="mt-2 text-green-700">
-      Iscritto come <b>${iscr.ruolo}</b>
-    </p>` : ``}
-  </div>`;
-}
-
-/* ================= NAV ================= */
-btnPrev.onclick=()=>{if(currentPage>1){currentPage--;renderPartite();}};
-btnNext.onclick=()=>{currentPage++;renderPartite();};
-async function logout(){await fetch("/logout");location.href="/";}
 
 loadUser();
 </script>
 
 </body>
 </html>
+
 

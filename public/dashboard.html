@@ -116,12 +116,24 @@ let iscrizioniUtente = [];
 let allPartite = [];
 
 /* ================== UTILS ================== */
-function safeArr(v){
-  try { return JSON.parse(v || "[]"); } catch { return []; }
+function normalizeVisualizzata(v){
+  if(!v) return [];
+  if(Array.isArray(v)) return v.map(Number);
+  if(typeof v === "string"){
+    try {
+      const arr = JSON.parse(v);
+      return Array.isArray(arr) ? arr.map(Number) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
 }
+
 function formatDate(d){
   return new Date(d).toLocaleDateString("it-IT");
 }
+
 function diffDays(d){
   const a = new Date(d);
   const b = new Date();
@@ -150,7 +162,7 @@ function miaRevisionataNonLetta(p){
   return (
     p.stato === "revisionata" &&
     iscrizioniUtente.some(i => i.partita_id === p.id) &&
-    !safeArr(p.visualizzata_da).includes(currentUser.id)
+    !normalizeVisualizzata(p.visualizzata_da).includes(Number(currentUser.id))
   );
 }
 
@@ -216,6 +228,7 @@ function renderList(list){
 
 function renderCard(p){
   const iscr = iscrizioniUtente.find(i => i.partita_id === p.id);
+
   let html = `
   <div class="border p-4 rounded ${miaRevisionataNonLetta(p) ? 'bg-red-50 border-red-600' : ''}">
     <h3 class="font-bold">${p.squadra_a} vs ${p.squadra_b}</h3>
@@ -230,8 +243,8 @@ function renderCard(p){
       <p class="font-semibold">Revisione Admin</p>
       <p>${p.note_admin || ""}</p>
       <button type="button"
-        onclick="confermaVisualizzazione(${p.id})"
-        class="mt-2 bg-orange-600 text-white px-3 py-1 rounded">
+        onclick="this.disabled=true; confermaVisualizzazione(${p.id})"
+        class="mt-2 bg-orange-600 text-white px-3 py-1 rounded disabled:opacity-50">
         Conferma lettura
       </button>
     </div>`;
@@ -314,7 +327,7 @@ async function fineStat(id){
   fd.append("partita_id", id);
   fd.append("file_stat", document.getElementById(`fls-${id}`).files[0]);
   fd.append("pdf_stat", document.getElementById(`pdf-${id}`).files[0]);
-  await fetch("/partite/finegara", { method:"POST", body:fd });
+  await fetch("/partite/finegara",{ method:"POST", body:fd });
   loadUser();
 }
 
@@ -346,4 +359,5 @@ loadUser();
 
 </body>
 </html>
+
 

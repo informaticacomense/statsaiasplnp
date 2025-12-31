@@ -135,14 +135,23 @@ function checkRevisionNotice(){
   revisionNotice.classList.toggle("hidden", mieRevisionate().length===0);
 }
 
-async function confermaVisualizzazione(id){
-  await fetch("/partite/conferma-visualizzazione",{
+  async function confermaVisualizzazione(id){
+  const res = await fetch("/partite/conferma-visualizzazione",{
     method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({ partita_id:id })
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ partita_id:id })
   });
-  loadUser();
+
+  if(!res.ok){
+    alert("Errore nella conferma della revisione");
+    return;
+  }
+
+  alert("Revisione confermata");
+  await loadUser();   // ricarica dati
 }
+
+
 
 /* ================= FILTRI ================= */
 function resetFilters(){
@@ -286,10 +295,12 @@ function renderPartitaCard(p,isPriority){
       <div class="mt-3 p-3 bg-yellow-100 border border-yellow-400 rounded">
         <p class="font-semibold">📌 Revisione Admin</p>
         <p>${p.note_admin}</p>
-        <button onclick="confermaVisualizzazione(${p.id})"
-          class="mt-2 bg-orange-600 text-white px-3 py-1 rounded">
-          Conferma lettura
-        </button>
+        <button type="button"
+  onclick="confermaVisualizzazione(${p.id})"
+  class="mt-2 bg-orange-600 text-white px-3 py-1 rounded">
+  Conferma lettura
+</button>
+
       </div>` : ``}
 
     ${extra}

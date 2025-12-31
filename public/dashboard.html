@@ -217,10 +217,13 @@ function renderCard(p){
     <div class="bg-yellow-100 p-3 mt-2 rounded">
       <p class="font-semibold">Revisione Admin</p>
       <p>${p.note_admin||""}</p>
-      <button onclick="confermaVisualizzazione(${p.id})"
-        class="mt-2 bg-orange-600 text-white px-3 py-1 rounded">
-        Conferma lettura
-      </button>
+     <button type="button"
+  onclick="this.disabled=true; confermaVisualizzazione(${p.id})"
+  class="mt-2 bg-orange-600 text-white px-3 py-1 rounded disabled:opacity-50">
+  Conferma lettura
+</button>
+
+
     </div>`;
   }
 
@@ -262,13 +265,26 @@ function renderCard(p){
 
 /* AZIONI */
 async function confermaVisualizzazione(id){
-  await fetch("/partite/conferma-visualizzazione",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({partita_id:id})
-  });
-  loadUser();
+  try {
+    const res = await fetch("/partite/conferma-visualizzazione", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ partita_id: id })
+    });
+
+    if (!res.ok) {
+      alert("Errore nella conferma della revisione");
+      return;
+    }
+
+    alert("Revisione confermata");
+    await loadUser();   // ricarica dati e sparisce la segnalazione
+  } catch (e) {
+    console.error(e);
+    alert("Errore di rete");
+  }
 }
+
 
 async function iscriviti(id){
   await fetch("/partite/registrati",{

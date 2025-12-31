@@ -30,7 +30,7 @@
 <section class="bg-white p-4 rounded shadow">
   <h2 class="text-2xl font-bold mb-4">Filtra partite e cerca la tua gara</h2>
 
-  <div class="flex flex-wrap items-end gap-4">
+  <div class="flex flex-wrap gap-4 items-end">
     <select id="filterCampionato" class="border p-2 rounded" onchange="applyFilters()">
       <option value="">Campionato</option>
       <option value="A2">A2</option>
@@ -58,10 +58,39 @@
     </label>
 
     <input type="text" id="filterSquadra" class="border p-2 rounded"
-      placeholder="Cerca per squadra" oninput="applyFilters()">
+           placeholder="Cerca per squadra" oninput="applyFilters()">
 
     <button onclick="resetFilters()" class="bg-gray-200 px-3 py-2 rounded">Reset</button>
   </div>
+</section>
+
+<!-- ================= CREA PARTITA ================= -->
+<section class="bg-white p-4 rounded shadow">
+  <h2 class="text-2xl font-bold mb-2">Crea nuova partita</h2>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <select id="cpCampionato" class="border p-2 rounded" onchange="updateGironiCreate()">
+      <option value="A2">A2</option>
+      <option value="Serie B">Serie B</option>
+    </select>
+
+    <select id="cpGirone" class="border p-2 rounded"></select>
+
+    <input type="date" id="cpData" class="border p-2 rounded">
+    <input type="time" id="cpOrario" class="border p-2 rounded">
+    <input id="cpSquadraA" placeholder="Squadra casa" class="border p-2 rounded">
+    <input id="cpSquadraB" placeholder="Squadra ospite" class="border p-2 rounded">
+    <input id="cpCampo" placeholder="Campo" class="border p-2 rounded">
+    <input id="cpNumeroGara" placeholder="Numero gara" class="border p-2 rounded">
+
+    <button id="btnCrea" class="bg-green-600 text-white px-4 py-2 rounded">
+      Crea Partita
+    </button>
+  </div>
+
+  <div id="cpMsg" class="mt-2 text-sm"></div>
+  <div id="cpError" class="hidden text-red-600 text-sm"></div>
+  <div id="successMsg" class="hidden text-green-600 font-semibold"></div>
 </section>
 
 <!-- ================= ELENCO PARTITE ================= -->
@@ -93,23 +122,19 @@ const pageSize = 10;
 function formatDate(d) {
   return new Date(d).toLocaleDateString("it-IT");
 }
-
 function toArray(v) {
-  if (!v) return [];
-  if (Array.isArray(v)) return v;
-  try { return JSON.parse(v); } catch { return []; }
+  try { return JSON.parse(v || "[]"); } catch { return []; }
 }
-
-function diffDays(dateStr) {
-  const today = new Date(); today.setHours(0,0,0,0);
-  const d = new Date(dateStr); d.setHours(0,0,0,0);
-  return Math.floor((d - today) / 86400000);
+function diffDays(d) {
+  const t = new Date(); t.setHours(0,0,0,0);
+  const x = new Date(d); x.setHours(0,0,0,0);
+  return Math.floor((x - t) / 86400000);
 }
 
 /* ================= LOAD ================= */
 async function loadUser() {
   const res = await fetch("/me");
-  if (!res.ok) return location.href = "/";
+  if (!res.ok) return location.href="/";
   currentUser = await res.json();
   userName.innerText = currentUser.nome + " " + currentUser.cognome;
   if (currentUser.ruolo === "admin") adminLink.classList.remove("hidden");
@@ -121,116 +146,148 @@ async function loadUser() {
   renderPartite();
 }
 
-/* ================= REVISIONI ================= */
-function checkRevisionNotice() {
-  const mie = allPartite.filter(p =>
-    p.stato === "revisionata" &&
-    iscrizioniUtente.find(i => i.partita_id === p.id) &&
-    !toArray(p.visualizzata_da).includes(currentUser.id)
-  );
-  revisionNotice.classList.toggle("hidden", mie.length === 0);
-}
-
 /* ================= FILTRI ================= */
 function resetFilters() {
-  filterCampionato.value = "";
-  filterGirone.value = "";
-  filterData.value = "";
-  filterRevision.value = "";
-  filterFuture.checked = false;
-  filterSquadra.value = "";
-  currentPage = 1;
+  filterCampionato.value="";
+  filterGirone.value="";
+  filterData.value="";
+  filterRevision.value="";
+  filterFuture.checked=false;
+  filterSquadra.value="";
+  currentPage=1;
   renderPartite();
 }
-
 function applyFilters() {
-  currentPage = 1;
+  currentPage=1;
   renderPartite();
 }
-
 function runFilters(list) {
-  const q = filterSquadra.value.toLowerCase().trim();
+  const q = filterSquadra.value.toLowerCase();
   const today = new Date().toISOString().slice(0,10);
-
-  return list.filter(p => {
-    if (filterCampionato.value && p.campionato !== filterCampionato.value) return false;
-    if (filterGirone.value && p.girone !== filterGirone.value) return false;
-    if (filterData.value && p.data_gara < filterData.value) return false;
-    if (filterFuture.checked && p.data_gara < today) return false;
-    if (q) {
-      const a = (p.squadra_a||"").toLowerCase();
-      const b = (p.squadra_b||"").toLowerCase();
-      if (!a.includes(q) && !b.includes(q)) return false;
+  return list.filter(p=>{
+    if(filterCampionato.value && p.campionato!==filterCampionato.value) return false;
+    if(filterGirone.value && p.girone!==filterGirone.value) return false;
+    if(filterData.value && p.data_gara<filterData.value) return false;
+    if(filterFuture.checked && p.data_gara<today) return false;
+    if(q){
+      if(!(p.squadra_a||"").toLowerCase().includes(q) &&
+         !(p.squadra_b||"").toLowerCase().includes(q)) return false;
     }
     return true;
   });
 }
-
-/* ================= ORDINAMENTO SMART ================= */
-function sortByProximity(list) {
+function sortSmart(list){
   return [...list].sort((a,b)=>{
-    const da = Math.abs(diffDays(a.data_gara));
-    const db = Math.abs(diffDays(b.data_gara));
-    const na = da <= 3;
-    const nb = db <= 3;
-
-    if (na && !nb) return -1;
-    if (!na && nb) return 1;
-    if (na && nb) return da - db;
-    return new Date(a.data_gara) - new Date(b.data_gara);
+    const da=Math.abs(diffDays(a.data_gara));
+    const db=Math.abs(diffDays(b.data_gara));
+    if(da<=3 && db>3) return -1;
+    if(db<=3 && da>3) return 1;
+    if(da<=3 && db<=3) return da-db;
+    return new Date(a.data_gara)-new Date(b.data_gara);
   });
 }
 
 /* ================= RENDER ================= */
 function renderPartite() {
-  partiteContainer.innerHTML = "";
+  partiteContainer.innerHTML="";
+  let list=runFilters(allPartite);
+  if(filterSquadra.value.trim()) list=sortSmart(list);
 
-  let filtered = runFilters(allPartite);
-  if (filterSquadra.value.trim()) {
-    filtered = sortByProximity(filtered);
-  }
+  const start=(currentPage-1)*pageSize;
+  const page=list.slice(start,start+pageSize);
 
-  const start = (currentPage-1)*pageSize;
-  const page = filtered.slice(start, start+pageSize);
-
-  if (!page.length) {
-    partiteContainer.innerHTML = "<p class='text-gray-500'>Nessuna partita trovata</p>";
+  if(!page.length){
+    partiteContainer.innerHTML="<p class='text-gray-500'>Nessuna partita trovata</p>";
     return;
   }
-
-  page.forEach(p => renderPartitaCard(p));
-
-  btnPrev.disabled = currentPage === 1;
-  btnNext.disabled = start + pageSize >= filtered.length;
-  pageInfo.innerText = `Pagina ${currentPage}`;
+  page.forEach(p=>renderPartitaCard(p));
+  btnPrev.disabled=currentPage===1;
+  btnNext.disabled=start+pageSize>=list.length;
+  pageInfo.innerText=`Pagina ${currentPage}`;
 }
 
-/* ================= CARD ================= */
-function renderPartitaCard(p) {
-  const iscr = iscrizioniUtente.find(i => i.partita_id === p.id);
-  partiteContainer.innerHTML += `
+/* ================= CARD + REGISTRAZIONE ================= */
+function renderPartitaCard(p){
+  const iscr=iscrizioniUtente.find(i=>i.partita_id===p.id);
+  partiteContainer.innerHTML+=`
   <div class="border p-4 rounded">
     <h3 class="font-bold">${p.campionato} - ${p.squadra_a} vs ${p.squadra_b}</h3>
     <p class="text-sm text-gray-600">
-      ${formatDate(p.data_gara)} ore ${p.orario?.slice(0,5)||"-"}
-      | Gara ${p.numero_gara||"-"} | Girone ${p.girone||"-"}
+      ${formatDate(p.data_gara)} ore ${p.orario?.slice(0,5)||"-"} |
+      Gara ${p.numero_gara||"-"} | Girone ${p.girone||"-"}
     </p>
     <p>Stato: <b>${p.stato}</b></p>
-    ${iscr ? `<p class="text-green-700 mt-2">Iscritto come <b>${iscr.ruolo}</b></p>` : ""}
+    ${iscr ? `<p class="text-green-700 mt-2">Iscritto come <b>${iscr.ruolo}</b></p>` : `
+      <button onclick="toggleIscrizioneForm(${p.id})"
+        class="bg-blue-600 text-white px-3 py-1 rounded mt-2">Registrati</button>
+      <form id="iscrizione-${p.id}" class="hidden mt-2">
+        <select id="ruolo-${p.id}" class="border p-2 rounded w-full mb-2">
+          <option value="caller">Caller</option>
+          <option value="statistician">Statistician</option>
+          <option value="standby">Standby</option>
+        </select>
+        <input type="time" id="orario-${p.id}" class="border p-2 rounded w-full mb-2">
+        <button onclick="confermaIscrizione(event,${p.id})"
+          class="bg-green-600 text-white px-3 py-1 rounded">Conferma</button>
+      </form>
+    `}
   </div>`;
 }
 
-/* ================= NAV ================= */
-btnPrev.onclick = ()=>{ if(currentPage>1){currentPage--;renderPartite();}};
-btnNext.onclick = ()=>{ currentPage++;renderPartite();};
-
-async function logout() {
-  await fetch("/logout");
-  location.href = "/";
+/* ================= HANDLER ================= */
+function toggleIscrizioneForm(id){
+  document.getElementById(`iscrizione-${id}`).classList.toggle("hidden");
+}
+async function confermaIscrizione(e,id){
+  e.preventDefault();
+  await fetch("/partite/registrati",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      partita_id:id,
+      ruolo:document.getElementById(`ruolo-${id}`).value,
+      orario_arrivo:document.getElementById(`orario-${id}`).value
+    })
+  });
+  loadUser();
 }
 
+/* ================= CREATE ================= */
+function updateGironiCreate(){
+  cpGirone.innerHTML = cpCampionato.value==="A2"
+    ? `<option value="UNICO">UNICO</option>`
+    : `<option value="A">A</option><option value="B">B</option>`;
+}
+btnCrea.onclick=async()=>{
+  const payload={
+    campionato:cpCampionato.value,
+    girone:cpGirone.value,
+    data_gara:cpData.value,
+    orario:cpOrario.value,
+    squadra_a:cpSquadraA.value,
+    squadra_b:cpSquadraB.value,
+    campo_gioco:cpCampo.value,
+    numero_gara:cpNumeroGara.value
+  };
+  const res=await fetch("/partite/create",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(payload)
+  });
+  successMsg.classList.remove("hidden");
+  successMsg.innerText="Partita creata";
+  loadUser();
+};
+
+/* ================= NAV ================= */
+btnPrev.onclick=()=>{if(currentPage>1){currentPage--;renderPartite();}};
+btnNext.onclick=()=>{currentPage++;renderPartite();};
+async function logout(){await fetch("/logout");location.href="/";}
+
+updateGironiCreate();
 loadUser();
 </script>
 
 </body>
 </html>
+

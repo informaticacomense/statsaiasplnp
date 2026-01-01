@@ -94,10 +94,11 @@
     <input id="cpCampo" placeholder="Campo" class="border p-2 rounded">
     <input id="cpNumero" placeholder="Numero gara" class="border p-2 rounded">
 
-    <button onclick="creaPartita()"
-            class="bg-green-600 text-white px-4 py-2 rounded md:col-span-3">
-      Crea Partita
-    </button>
+    <button type="button"
+        onclick="creaPartita()"
+        class="bg-green-600 text-white px-4 py-2 rounded md:col-span-3">
+  Crea Partita
+</button>
   </div>
 </section>
 
@@ -374,23 +375,53 @@ async function fineStat(id){
 }
 
 
-async function creaPartita(){
-  await fetch("/partite/create",{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({
-      campionato:cpCampionato.value,
-      girone:cpGirone.value,
-      data_gara:cpData.value,
-      orario:cpOra.value,
-      squadra_a:cpCasa.value,
-      squadra_b:cpOspite.value,
-      campo_gioco:cpCampo.value,
-      numero_gara:cpNumero.value
-    })
-  });
-  loadUser();
+<script>
+async function creaPartita() {
+
+  const campionato = document.getElementById("cpCampionato").value;
+  const girone     = document.getElementById("cpGirone").value;
+  const data       = document.getElementById("cpData").value;
+  const ora        = document.getElementById("cpOra").value;
+  const casa       = document.getElementById("cpCasa").value.trim();
+  const ospite     = document.getElementById("cpOspite").value.trim();
+  const campo      = document.getElementById("cpCampo").value.trim();
+  const numero     = document.getElementById("cpNumero").value.trim();
+
+  if (!data || !casa || !ospite) {
+    alert("Compila almeno data, squadra casa e squadra ospite");
+    return;
+  }
+
+  try {
+    const res = await fetch("/partite/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        campionato: campionato,
+        girone: girone,
+        data_gara: data,
+        orario: ora,
+        squadra_a: casa,
+        squadra_b: ospite,
+        campo_gioco: campo,
+        numero_gara: numero
+      })
+    });
+
+    if (!res.ok) {
+      const msg = await res.text();
+      throw new Error(msg || "Errore creazione partita");
+    }
+
+    alert("Partita creata correttamente");
+    loadUser();
+
+  } catch (err) {
+    alert("Errore: " + err.message);
+  }
 }
+</script>
+
 
 async function logout(){
   await fetch("/logout");

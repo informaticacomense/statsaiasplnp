@@ -218,6 +218,12 @@ app.post('/partite/crea', requireLogin, async (req, res) => {
   }
 });
 
+app.post('/partite/create', requireLogin, async (req, res) => {
+  req.url = '/partite/crea';
+  app._router.handle(req, res);
+});
+
+
 // Conferma visualizzazione revisione
 app.post('/partite/conferma-visualizzazione', requireLogin, async (req, res) => {
   const userId = req.session.userId;

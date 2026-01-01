@@ -393,12 +393,12 @@ async function creaPartita() {
   }
 
   try {
-    const res = await fetch("/partite/create", {
+    const res = await fetch("/partite/crea", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        campionato: campionato,
-        girone: girone,
+        campionato,
+        girone,
         data_gara: data,
         orario: ora,
         squadra_a: casa,
@@ -420,6 +420,7 @@ async function creaPartita() {
     alert("Errore: " + err.message);
   }
 }
+
 
 async function logout(){
   await fetch("/logout");

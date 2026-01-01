@@ -375,7 +375,7 @@ async function fineStat(id){
 }
 
 
-<script>
+
 async function creaPartita() {
 
   const campionato = document.getElementById("cpCampionato").value;
@@ -420,9 +420,7 @@ async function creaPartita() {
     alert("Errore: " + err.message);
   }
 }
-</script>
 
-<script>
 async function logout(){
   await fetch("/logout");
   location.href="/";

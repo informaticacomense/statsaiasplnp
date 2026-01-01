@@ -374,39 +374,23 @@ async function fineStat(id){
 }
 
 
-<script>
-async function creaPartita() {
-
-  if (!cpData.value || !cpCasa.value || !cpOspite.value) {
-    alert("Compila almeno data, squadra casa e squadra ospite");
-    return;
-  }
-
-  const res = await fetch("/partite/create", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      campionato: cpCampionato.value,
-      girone: cpGirone.value,
-      data_gara: cpData.value,
-      orario: cpOra.value,
-      squadra_a: cpCasa.value,
-      squadra_b: cpOspite.value,
-      campo_gioco: cpCampo.value,
-      numero_gara: cpNumero.value
+async function creaPartita(){
+  await fetch("/partite/create",{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({
+      campionato:cpCampionato.value,
+      girone:cpGirone.value,
+      data_gara:cpData.value,
+      orario:cpOra.value,
+      squadra_a:cpCasa.value,
+      squadra_b:cpOspite.value,
+      campo_gioco:cpCampo.value,
+      numero_gara:cpNumero.value
     })
   });
-
-  if (!res.ok) {
-    const msg = await res.text();
-    alert("Errore creazione partita:\n" + msg);
-    return;
-  }
-
-  alert("Partita creata correttamente");
   loadUser();
 }
-
 
 async function logout(){
   await fetch("/logout");
